@@ -23,10 +23,10 @@
   </style>
 </head>
 
-<!-- Added id="main-bg" so JS can change the background color -->
+<!-- Body container for dynamic background color -->
 <body id="main-bg" class="min-h-screen flex items-center justify-center p-4 transition-colors duration-500">
 
-  <!-- Added id="card-box" so JS can change the card background color -->
+  <!-- Main Card Box for dynamic card color -->
   <div id="card-box" class="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 p-6 text-center relative overflow-hidden transition-colors duration-500">
     
     <!-- HEADER -->
@@ -36,8 +36,7 @@
       <p id="status-box" class="text-xs text-slate-400 mt-1">Fetching reward info...</p>
     </div>
 
- <!-- LOYALTY CARD DISPLAY -->
-  <!-- LOYALTY CARD DISPLAY -->
+    <!-- LOYALTY CARD DISPLAY -->
     <div class="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/50 mb-6">
       <div class="flex justify-between items-center mb-4">
         <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Loyalty Pass</span>
@@ -54,23 +53,18 @@
     </div>
 
   </div>
-    <!-- FOOTER -->
-    <div class="text-xs text-slate-500 uppercase tracking-widest font-semibold">
-      Powered by Smart Loyalty
-    </div>
-
-  </div>
 
   <script>
-  
- const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co"; 
-const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
+    // 1. Initialize Supabase Client
+    const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co"; 
+    const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
+    // 2. Extract Business ID from URL parameter (e.g., ?biz=smiths_cafe)
     const urlParams = new URLSearchParams(window.location.search);
     const bizId = urlParams.get('biz') || 'demo_cafe';
 
+    // 3. Persistent Device ID for Local Storage Tracking
     let deviceId = localStorage.getItem('loyalty_device_id');
     if (!deviceId) {
       deviceId = 'dev_' + Math.random().toString(36).substring(2, 15);
@@ -79,6 +73,7 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentBiz = null;
 
+    // 4. Main App Initialization
     async function initApp() {
       try {
         // Fetch Business Info safely from Supabase
@@ -102,16 +97,16 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         document.getElementById('status-box').innerText = biz.reward_description || "Collect stamps for rewards!";
         document.getElementById('stamp-count').innerText = `0 / ${biz.total_stamps_required || 10} STAMPS`;
 
-       // 🎨 APPLY DYNAMIC STYLING FROM SUPABASE
+        // 🎨 APPLY DYNAMIC STYLING FROM SUPABASE
         if (currentBiz.bg_color) {
-            document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
+          document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
         }
         if (currentBiz.card_bg) {
-            document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
+          document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
         }
         if (currentBiz.accent_color) {
-            document.getElementById('biz-name').style.color = currentBiz.accent_color;
-            document.getElementById('stamp-count').style.color = currentBiz.accent_color;
+          document.getElementById('biz-name').style.color = currentBiz.accent_color;
+          document.getElementById('stamp-count').style.color = currentBiz.accent_color;
         }
 
         // Render Stamp Grid
@@ -119,25 +114,29 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
       } catch (err) {
         console.error("App Crash Error:", err);
-     function renderStamps(currentCount, totalRequired) {
-  const grid = document.getElementById('stamp-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
+      }
+    }
 
-  for (let i = 0; i < totalRequired; i++) {
-    const stamp = document.createElement('div');
-    const isStamped = i < currentCount;
+    // Helper function to render stamp icons
+    function renderStamps(currentCount, totalRequired) {
+      const grid = document.getElementById('stamp-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
 
-    stamp.className = `aspect-square rounded-xl flex items-center justify-center text-lg border transition-all ${
-      isStamped 
-        ? 'bg-amber-500/20 border-amber-400 text-amber-400 stamp-glow scale-105' 
-        : 'bg-black/30 border-white/10 text-white/20'
-    }`;
+      for (let i = 0; i < totalRequired; i++) {
+        const stamp = document.createElement('div');
+        const isStamped = i < currentCount;
 
-    stamp.innerText = isStamped ? '☕' : '◯';
-    grid.appendChild(stamp);
-  }
-}
+        stamp.className = `aspect-square rounded-xl flex items-center justify-center text-lg border transition-all ${
+          isStamped 
+            ? 'bg-amber-500/20 border-amber-400 text-amber-400 stamp-glow scale-105' 
+            : 'bg-black/30 border-white/10 text-white/20'
+        }`;
+
+        stamp.innerText = isStamped ? '☕' : '◯';
+        grid.appendChild(stamp);
+      }
+    }
 
     // Run app on load
     initApp();
