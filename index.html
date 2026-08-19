@@ -23,15 +23,12 @@
   </style>
 </head>
 
-<!-- Body container for dynamic background color -->
 <body id="main-bg" class="min-h-screen flex items-center justify-center p-4 transition-colors duration-500">
 
-  <!-- Main Card Box for dynamic card color -->
   <div id="card-box" class="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 p-6 text-center relative overflow-hidden transition-colors duration-500">
     
     <!-- HEADER -->
     <div class="mb-6 flex flex-col items-center">
-      <!-- Logo Container -->
       <div id="logo-container" class="mb-3 flex items-center justify-center min-h-[50px]">
         <span id="default-logo" class="text-4xl">☕</span>
       </div>
@@ -50,6 +47,14 @@
       <div id="stamp-grid" class="grid grid-cols-5 gap-2 my-4"></div>
     </div>
 
+    <!-- REDEEM BUTTON CONTAINER (Hidden by default) -->
+    <div id="redeem-container" class="hidden mb-6">
+      <button onclick="redeemReward()" class="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-all transform active:scale-95">
+        🎁 Claim Free Reward!
+      </button>
+      <p class="text-[10px] text-slate-400 mt-2">Show this to staff to redeem</p>
+    </div>
+
     <!-- FOOTER -->
     <div class="text-xs text-slate-500 uppercase tracking-widest font-semibold">
       Powered by Smart Loyalty
@@ -58,17 +63,14 @@
   </div>
 
   <script>
-    // 1. Initialize Supabase Client
     const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co"; 
     const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // 2. Extract Business ID & NFC Stamp Trigger from URL
     const urlParams = new URLSearchParams(window.location.search);
     const bizId = urlParams.get('biz') || 'smiths_cafe';
     const isNfcTap = urlParams.get('stamp') === 'true'; 
 
-    // 3. Persistent Device ID for Local Storage Tracking
     let deviceId = localStorage.getItem('loyalty_device_id');
     if (!deviceId) {
       deviceId = 'dev_' + Math.random().toString(36).substring(2, 15);
@@ -76,20 +78,17 @@
     }
 
     let currentBiz = null;
+    let currentPass = null;
 
-    // 4. Main App Initialization
     async function initApp() {
       try {
-        // Fetch Business Info from Supabase
         const { data: bizList, error: bizError } = await db
           .from('businesses')
           .select('*')
           .eq('id', bizId);
 
         if (bizError || !bizList || bizList.length === 0) {
-          console.error("Biz Fetch Error:", bizError);
           document.getElementById('biz-name').innerText = "Business Not Found";
-          document.getElementById('status-box').innerText = "Please check your NFC tag link or database entry.";
           return;
         }
 
@@ -98,45 +97,37 @@
         document.getElementById('biz-name').innerText = biz.name;
         document.getElementById('status-box').innerText = biz.reward_description || "Collect stamps for rewards!";
 
-        // 🖼️ RENDER CUSTOM LOGO IF AVAILABLE
         if (currentBiz.logo_url && currentBiz.logo_url.trim() !== '') {
-          const logoContainer = document.getElementById('logo-container');
-          logoContainer.innerHTML = `<img src="${currentBiz.logo_url}" alt="Logo" class="h-16 w-auto max-w-[160px] object-contain rounded-lg">`;
+          document.getElementById('logo-container').innerHTML = `<img src="${currentBiz.logo_url}" alt="Logo" class="h-16 w-auto max-w-[160px] object-contain rounded-lg">`;
         }
 
-        // 🎨 APPLY DYNAMIC STYLING
-        if (currentBiz.bg_color) {
-          document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
-        }
-        if (currentBiz.card_bg) {
-          document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
-        }
+        if (currentBiz.bg_color) document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
+        if (currentBiz.card_bg) document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
         if (currentBiz.accent_color) {
           document.getElementById('biz-name').style.color = currentBiz.accent_color;
           document.getElementById('stamp-count').style.color = currentBiz.accent_color;
         }
 
-        // Fetch user's current loyalty pass
-        let { data: pass, error: passError } = await db
+        let { data: pass } = await db
           .from('passes')
           .select('*')
           .eq('business_id', bizId)
           .eq('device_id', deviceId)
           .maybeSingle();
 
+        currentPass = pass;
         let currentCount = pass ? pass.stamp_count : 0;
         const totalRequired = biz.total_stamps_required || 10;
         const cooldownMinutes = biz.cooldown_minutes || 0;
 
-        // 5. NFC STAMPING WITH COOLDOWN PROTECTION
+        // Process NFC Stamp
         if (isNfcTap) {
           let canStamp = true;
           let minutesLeft = 0;
 
           if (pass && pass.updated_at && cooldownMinutes > 0) {
             const lastStampTime = new Date(pass.updated_at).getTime();
-            const now = new Date().getTime();
-            const elapsedMinutes = (now - lastStampTime) / (1000 * 60);
+            const elapsedMinutes = (new Date().getTime() - lastStampTime) / (1000 * 60);
 
             if (elapsedMinutes < cooldownMinutes) {
               canStamp = false;
@@ -148,12 +139,13 @@
             currentCount = Math.min(currentCount + 1, totalRequired);
 
             if (!pass) {
-              await db.from('passes').insert([{
+              const { data: newPass } = await db.from('passes').insert([{
                 business_id: bizId,
                 device_id: deviceId,
                 stamp_count: currentCount,
                 updated_at: new Date()
-              }]);
+              }]).select().single();
+              currentPass = newPass;
             } else {
               await db.from('passes').update({
                 stamp_count: currentCount,
@@ -166,12 +158,16 @@
             document.getElementById('status-box').innerText = `⏳ Please wait ${minutesLeft} min before your next stamp!`;
           }
 
-          // Clean up URL parameter
           const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?biz=${bizId}`;
           window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
         }
 
-        // Render stamps on card
+        // Show Redeem Button if 10 stamps reached
+        if (currentCount >= totalRequired) {
+          document.getElementById('status-box').innerText = "🎉 REWARD UNLOCKED!";
+          document.getElementById('redeem-container').classList.remove('hidden');
+        }
+
         document.getElementById('stamp-count').innerText = `${currentCount} / ${totalRequired} STAMPS`;
         renderStamps(currentCount, totalRequired);
 
@@ -180,7 +176,27 @@
       }
     }
 
-    // Helper function to render stamp icons
+    // REDEEM FUNCTION WITH PIN
+    async function redeemReward() {
+      const correctPin = currentBiz.pin_code || '1234';
+      const userPin = prompt("Staff: Enter shop PIN to redeem reward:");
+
+      if (userPin === correctPin) {
+        if (currentPass) {
+          // Reset stamps to 0 in Supabase
+          await db.from('passes').update({
+            stamp_count: 0,
+            updated_at: new Date()
+          }).eq('id', currentPass.id);
+
+          alert("Reward claimed! Pass reset to 0 stamps.");
+          location.reload(); // Refresh screen
+        }
+      } else if (userPin !== null) {
+        alert("Incorrect PIN code!");
+      }
+    }
+
     function renderStamps(currentCount, totalRequired) {
       const grid = document.getElementById('stamp-grid');
       if (!grid) return;
@@ -201,7 +217,6 @@
       }
     }
 
-    // Run app on load
     initApp();
   </script>
 </body>
