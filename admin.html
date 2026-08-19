@@ -71,15 +71,24 @@
     const bizId = new URLSearchParams(window.location.search).get('biz') || 'smiths_cafe';
     let currentBiz = null;
 
-    async function login() {
-      const pin = document.getElementById('pin-input').value;
-      const { data } = await db.from('businesses').select('*').eq('id', bizId).single();
-      
-      if (data && pin === (data.pin_code || '1234')) {
-        currentBiz = data;
-        document.getElementById('login-panel').classList.add('hidden');
-        document.getElementById('dashboard-panel').classList.remove('hidden');
-        document.getElementById('biz-title').innerText = `${data.name} — Staff Control`;
+   async function login() {
+  const pin = document.getElementById('pin-input').value;
+  
+  // Fetch business info from database
+  const { data, error } = await db.from('businesses').select('*').eq('id', bizId).maybeSingle();
+  
+  // Set default PIN to '1234' if none is stored in Supabase
+  const validPin = data?.pin_code || '1234';
+
+  if (pin === validPin) {
+    currentBiz = data || { id: bizId, pin_code: '1234' };
+    document.getElementById('login-panel').classList.add('hidden');
+    document.getElementById('dashboard-panel').classList.remove('hidden');
+    loadDashboardData();
+  } else {
+    alert("❌ Invalid PIN code. Default is 1234");
+  }
+}
         loadDashboardData();
       } else {
         alert("❌ Incorrect PIN");
