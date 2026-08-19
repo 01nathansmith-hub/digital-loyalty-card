@@ -1,218 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Loyalty Card</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
-        .stamp-glow { box-shadow: 0 0 15px rgba(251, 191, 36, 0.4); }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digital Loyalty Card</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    body { 
+      background: #0f172a; 
+      color: #f8fafc; 
+      font-family: system-ui, -apple-system, sans-serif; 
+    }
+    .stamp-glow { 
+      box-shadow: 0 0 15px rgba(251, 191, 36, 0.4); 
+    }
+  </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 p-6 text-center relative overflow-hidden">
-        
-        <!-- HEADER -->
-        <div class="mb-6">
-            <span class="text-5xl inline-block mb-2">☕</span>
-            <h1 class="text-2xl font-black text-amber-400" id="biz-name">Loading Store...</h1>
-            <p class="text-xs text-slate-400 mt-1" id="biz-reward">Fetching reward info...</p>
-        </div>
+<!-- Added id="main-bg" so JS can change the background color -->
+<body id="main-bg" class="min-h-screen flex items-center justify-center p-4 transition-colors duration-500">
 
-        <!-- STAMP CARD CONTAINER -->
-        <div class="bg-slate-900 rounded-2xl p-5 border border-slate-700/80 mb-6">
-            <div class="flex justify-between items-center mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                <span>Loyalty Pass</span>
-                <span id="stamp-counter" class="text-amber-400">0 / 0 Stamps</span>
-            </div>
-
-            <!-- DYNAMIC STAMP GRID -->
-            <div id="stamp-grid" class="grid grid-cols-4 gap-3">
-                <!-- Stamps render here -->
-            </div>
-        </div>
-
-        <!-- REWARD NOTICE / STATUS -->
-        <div id="status-box" class="bg-slate-700/50 rounded-xl p-3 mb-6 border border-slate-600 text-sm text-slate-300">
-            Scanning card...
-        </div>
-
-        <!-- REWARD CLAIMED BUTTON (Hidden by default) -->
-        <button id="claim-btn" onclick="redeemReward()" class="hidden w-full py-4 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black rounded-2xl text-lg shadow-lg transition transform active:scale-95 mb-4">
-            🎉 CLAIM FREE REWARD!
-        </button>
-
-        <p class="text-[10px] text-slate-500 uppercase tracking-widest">Powered by Smart Loyalty</p>
+  <!-- Added id="card-box" so JS can change the card background color -->
+  <div id="card-box" class="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 p-6 text-center relative overflow-hidden transition-colors duration-500">
+    
+    <!-- HEADER -->
+    <div class="mb-6">
+      <div class="text-4xl mb-2">☕</div>
+      <h1 id="biz-name" class="text-2xl font-bold text-amber-400">Loading Business...</h1>
+      <p id="status-box" class="text-xs text-slate-400 mt-1">Fetching reward info...</p>
     </div>
 
-    <script>
-        // --- CONFIGURATION ---
-        const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
+    <!-- LOYALTY CARD DISPLAY -->
+    <div class="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/50 mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Loyalty Pass</span>
+        <span id="stamp-count" class="text-xs font-bold text-amber-400">0 / 0 STAMPS</span>
+      </div>
 
-        const { createClient } = window.supabase;
-        const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+      <!-- Stamp Grid Container -->
+      <div id="stamp-grid" class="grid grid-cols-5 gap-2 my-4">
+        <!-- Stamps render dynamically here -->
+      </div>
+    </div>
 
-        // Get Business ID from URL (?biz=demo_cafe)
-        const urlParams = new URLSearchParams(window.location.search);
-        const bizId = urlParams.get('biz') || 'demo_cafe';
+    <!-- FOOTER -->
+    <div class="text-xs text-slate-500 uppercase tracking-widest font-semibold">
+      Powered by Smart Loyalty
+    </div>
 
-        // Get or Create Persistent Device ID for Customer
-        let deviceId = localStorage.getItem('loyalty_device_id');
-        if (!deviceId) {
-            deviceId = 'dev_' + Math.random().toString(36).substring(2, 15);
-            localStorage.setItem('loyalty_device_id', deviceId);
+  </div>
+
+  <script>
+    // 1. Initialize Supabase Client
+    // Replace these placeholder strings with your actual Supabase URL & Anon Key if needed!
+    const SUPABASE_URL = "YOUR_SUPABASE_URL"; 
+    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 2. Extract Business ID from URL parameter (e.g., ?biz=verne_cafe)
+    const urlParams = new URLSearchParams(window.location.search);
+    const bizId = urlParams.get('biz') || 'demo_cafe';
+
+    // 3. Persistent Device ID for Local Storage Tracking
+    let deviceId = localStorage.getItem('loyalty_device_id');
+    if (!deviceId) {
+      deviceId = 'dev_' + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem('loyalty_device_id', deviceId);
+    }
+
+    let currentBiz = null;
+
+    // 4. Main App Initialization
+    async function initApp() {
+      try {
+        // Fetch Business Info safely from Supabase
+        const { data: bizList, error: bizError } = await db
+          .from('businesses')
+          .select('*')
+          .eq('id', bizId);
+
+        // Check for fetch errors or missing business
+        if (bizError || !bizList || bizList.length === 0) {
+          console.error("Biz Fetch Error:", bizError);
+          document.getElementById('biz-name').innerText = "Business Not Found";
+          document.getElementById('status-box').innerText = "Please check your NFC tag link or database entry.";
+          return;
         }
 
-        let currentBiz = null;
-        let currentCard = null;
+        // Assign business data
+        const biz = bizList[0];
+        currentBiz = biz;
+        document.getElementById('biz-name').innerText = biz.name;
+        document.getElementById('status-box').innerText = biz.reward_description || "Collect stamps for rewards!";
+        document.getElementById('stamp-count').innerText = `0 / ${biz.total_stamps_required || 10} STAMPS`;
 
-        async function initApp() {
-            try {
-                // 1. Fetch Business Info safely
-                const { data: bizList, error: bizError } = await db
-                    .from('businesses')
-                    .select('*')
-                    .eq('id', bizId);
-
-                if (bizError || !bizList || bizList.length === 0) {
-                    console.error("Biz Fetch Error:", bizError);
-                    document.getElementById('biz-name').innerText = "Business Not Found";
-                    document.getElementById('status-box').innerText = "Please check your NFC tag link or database entry.";
-                    return;
-                }
-
-                const biz = bizList[0];
-                currentBiz = biz;
-                document.getElementById('biz-name').innerText = biz.name;
-                document.getElementById('biz-reward').innerText = `Reward: ${biz.reward_description}`;
-
-                // 2. Fetch or Create Customer Stamp Card
-                const { data: cardList } = await db
-                    .from('stamp_cards')
-                    .select('*')
-                    .eq('business_id', bizId)
-                    .eq('customer_device_id', deviceId);
-
-                let card = (cardList && cardList.length > 0) ? cardList[0] : null;
-
-                if (!card) {
-                    const { data: newCards } = await db
-                        .from('stamp_cards')
-                        .insert([{ business_id: bizId, customer_device_id: deviceId, stamps_count: 0 }])
-                        .select();
-                    
-                    if (newCards && newCards.length > 0) {
-                        card = newCards[0];
-                    }
-                }
-
-                currentCard = card;
-
-                // 3. Process Stamp Visit
-                if (currentBiz && currentCard) {
-                    await processStampVisit();
-                }
-
-            } catch (err) {
-                console.error("Init Error:", err);
-                document.getElementById('status-box').innerText = "Error connecting to loyalty server.";
-            }
+        // 🎨 APPLY DYNAMIC STYLING FROM SUPABASE
+        if (currentBiz.bg_color) {
+          document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
+        }
+        if (currentBiz.card_bg) {
+          document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
         }
 
-        async function processStampVisit() {
-            // Check last visit for anti-cheat cooldown
-            const { data: visitList } = await db
-                .from('visit_logs')
-                .select('*')
-                .eq('business_id', bizId)
-                .eq('customer_device_id', deviceId)
-                .order('scanned_at', { ascending: false })
-                .limit(1);
+        // Render Initial Empty Stamp Grid
+        renderStamps(0, biz.total_stamps_required || 10);
 
-            const lastVisit = (visitList && visitList.length > 0) ? visitList[0] : null;
+      } catch (err) {
+        console.error("App Crash Error:", err);
+      }
+    }
 
-            let canStamp = true;
-            if (lastVisit) {
-                const lastTime = new Date(lastVisit.scanned_at).getTime();
-                const now = new Date().getTime();
-                const minutesPassed = (now - lastTime) / (1000 * 60);
+    // Helper function to render stamp icons
+    function renderStamps(currentCount, totalRequired) {
+      const grid = document.getElementById('stamp-grid');
+      grid.innerHTML = '';
 
-                if (minutesPassed < currentBiz.cooldown_minutes) {
-                    canStamp = false;
-                    const remaining = Math.ceil(currentBiz.cooldown_minutes - minutesPassed);
-                    document.getElementById('status-box').innerText = `⏱️ Stamp active! Next scan available in ${remaining} mins.`;
-                }
-            }
+      for (let i = 0; i < totalRequired; i++) {
+        const stamp = document.createElement('div');
+        stamp.className = `aspect-square rounded-xl flex items-center justify-center text-lg border ${
+          i < currentCount 
+            ? 'bg-amber-500/20 border-amber-400 text-amber-400 stamp-glow' 
+            : 'bg-slate-800/40 border-slate-700/60 text-slate-600'
+        }`;
+        stamp.innerText = i < currentCount ? '☕' : '◯';
+        grid.appendChild(stamp);
+      }
+    }
 
-            if (canStamp) {
-                let newCount = currentCard.stamps_count + 1;
-                if (newCount > currentBiz.total_stamps_required) {
-                    newCount = currentBiz.total_stamps_required;
-                }
-
-                // Update database
-                await db.from('stamp_cards').update({ stamps_count: newCount }).eq('id', currentCard.id);
-                await db.from('visit_logs').insert([{ business_id: bizId, customer_device_id: deviceId }]);
-
-                currentCard.stamps_count = newCount;
-                
-                if (newCount === currentBiz.total_stamps_required) {
-                    document.getElementById('status-box').innerText = "🎉 Congratulations! You earned a free reward!";
-                } else {
-                    document.getElementById('status-box').innerText = "✨ Stamp collected! Thanks for visiting!";
-                }
-            }
-
-            renderStamps();
-        }
-
-        function renderStamps() {
-            const grid = document.getElementById('stamp-grid');
-            grid.innerHTML = '';
-
-            const total = currentBiz.total_stamps_required;
-            const filled = currentCard.stamps_count;
-
-            document.getElementById('stamp-counter').innerText = `${filled} / ${total} Stamps`;
-
-            for (let i = 1; i <= total; i++) {
-                const slot = document.createElement('div');
-                slot.className = `h-16 rounded-xl flex items-center justify-center font-bold transition-all duration-300 ${
-                    i <= filled 
-                        ? 'bg-amber-400 text-slate-950 stamp-glow scale-105' 
-                        : 'bg-slate-800 text-slate-600 border border-slate-700'
-                }`;
-
-                slot.innerHTML = i <= filled ? '☕' : `<span class="text-xs">${i}</span>`;
-                grid.appendChild(slot);
-            }
-
-            if (filled >= total) {
-                document.getElementById('claim-btn').classList.remove('hidden');
-            }
-        }
-
-        async function redeemReward() {
-            if (confirm("Show this screen to the staff member to redeem your reward! Reset stamps now?")) {
-                await db.from('stamp_cards').update({ 
-                    stamps_count: 0, 
-                    rewards_earned: (currentCard.rewards_earned || 0) + 1 
-                }).eq('id', currentCard.id);
-
-                currentCard.stamps_count = 0;
-                document.getElementById('claim-btn').classList.add('hidden');
-                document.getElementById('status-box').innerText = "🎁 Reward redeemed! Starting fresh card.";
-                renderStamps();
-            }
-        }
-
-        initApp();
-    </script>
+    // Run app on load
+    initApp();
+  </script>
 </body>
 </html>
