@@ -28,51 +28,67 @@
         <p class="text-xs text-slate-400">NFC Control Center</p>
       </div>
       <div class="flex gap-2">
+        <button onclick="exportCSV()" class="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold rounded-xl">📥 Export CSV</button>
         <button onclick="changePin()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-semibold rounded-xl">🔑 Change PIN</button>
         <button onclick="logout()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold rounded-xl">Logout</button>
       </div>
     </div>
 
-    <!-- STATS & COOLDOWN SETTINGS -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <p class="text-xs font-bold text-slate-400 uppercase">New Cards Today</p>
-        <p id="stat-today" class="text-3xl font-black text-emerald-400 mt-2">0</p>
+    <!-- STATS GRID -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <p class="text-[10px] font-bold text-slate-400 uppercase">New Cards Today</p>
+        <p id="stat-today" class="text-2xl font-black text-emerald-400 mt-1">0</p>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <p class="text-xs font-bold text-slate-400 uppercase">Total Cards Issued</p>
-        <p id="stat-active" class="text-3xl font-black text-slate-100 mt-2">0</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <p class="text-[10px] font-bold text-slate-400 uppercase">Total Cards Issued</p>
+        <p id="stat-active" class="text-2xl font-black text-slate-100 mt-1">0</p>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <p class="text-xs font-bold text-slate-400 uppercase">Total Stamps Issued</p>
-        <p id="stat-stamps" class="text-3xl font-black text-amber-400 mt-2">0</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <p class="text-[10px] font-bold text-slate-400 uppercase">Total Stamps Issued</p>
+        <p id="stat-stamps" class="text-2xl font-black text-amber-400 mt-1">0</p>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <p class="text-[10px] font-bold text-slate-400 uppercase">Rewards Claimed</p>
+        <p id="stat-rewards" class="text-2xl font-black text-purple-400 mt-1">0</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
         <div>
-          <p class="text-xs font-bold text-slate-400 uppercase">Cooldown Timer</p>
-          <p id="stat-cooldown" class="text-3xl font-black text-amber-400 mt-1">60 min</p>
+          <p class="text-[10px] font-bold text-slate-400 uppercase">Cooldown Timer</p>
+          <p id="stat-cooldown" class="text-2xl font-black text-amber-400 mt-1">60 min</p>
         </div>
-        <button onclick="changeCooldown()" class="mt-3 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold rounded-lg hover:bg-amber-500/20 transition">⚙️ Change Cooldown</button>
+        <button onclick="changeCooldown()" class="mt-2 px-2 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold rounded hover:bg-amber-500/20 transition">⚙️ Set Cooldown</button>
       </div>
     </div>
 
-    <!-- OVERALL CARDS USAGE BREAKDOWN -->
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
-      <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Overall Card Activity</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
-          <div>
-            <p class="text-slate-400 font-medium">🆕 New Customer Cards (Today)</p>
-            <p class="text-slate-500 text-[10px]">Created since midnight</p>
+    <!-- VIP LEADERBOARD & CARD ACTIVITY -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- OVERALL CARDS USAGE BREAKDOWN -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Overall Card Activity</h2>
+        <div class="space-y-3 text-xs">
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+            <div>
+              <p class="text-slate-300 font-medium">🆕 New Customer Cards (Today)</p>
+              <p class="text-slate-500 text-[10px]">Created since midnight</p>
+            </div>
+            <span id="breakdown-new" class="text-lg font-bold text-emerald-400">0</span>
           </div>
-          <span id="breakdown-new" class="text-xl font-bold text-emerald-400">0</span>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+            <div>
+              <p class="text-slate-300 font-medium">🔁 Existing / Returning Cards</p>
+              <p class="text-slate-500 text-[10px]">Created prior to today</p>
+            </div>
+            <span id="breakdown-old" class="text-lg font-bold text-amber-400">0</span>
+          </div>
         </div>
-        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
-          <div>
-            <p class="text-slate-400 font-medium">🔁 Existing / Returning Cards</p>
-            <p class="text-slate-500 text-[10px]">Created prior to today</p>
-          </div>
-          <span id="breakdown-old" class="text-xl font-bold text-amber-400">0</span>
+      </div>
+
+      <!-- VIP REGULARS LEADERBOARD -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">👑 Top Regulars (VIPs)</h2>
+        <div id="vip-list" class="space-y-2 text-xs">
+          <!-- Rendered dynamically -->
         </div>
       </div>
     </div>
@@ -80,7 +96,7 @@
     <!-- CUSTOMER PASSES LIST -->
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Customer Loyalty Passes</h2>
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Customer Loyalty Passes</h2>
         <input type="text" id="search-input" oninput="filterPasses()" placeholder="🔍 Search customer name..." class="w-full sm:w-64 px-3 py-1.5 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-amber-400">
       </div>
       <div id="passes-list" class="space-y-3">
@@ -124,12 +140,12 @@
     const { data: passes } = await db.from('passes').select('*').eq('business_id', bizId);
     cachedPasses = passes || [];
 
-    // Calculate today's date boundary
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
     let newTodayCount = 0;
     let oldCardsCount = 0;
+    let totalRewards = 0;
 
     cachedPasses.forEach(p => {
       const createdAt = new Date(p.created_at || p.updated_at);
@@ -138,18 +154,52 @@
       } else {
         oldCardsCount++;
       }
+      
+      // Calculate claimed rewards (assuming 1 reward per 10 lifetime stamps)
+      const lifetime = p.total_lifetime_stamps || p.stamp_count || 0;
+      totalRewards += Math.floor(lifetime / 10);
     });
 
-    // Update Stats & Cards Breakdown
     document.getElementById('stat-today').innerText = newTodayCount;
     document.getElementById('stat-active').innerText = cachedPasses.length;
+    document.getElementById('stat-rewards').innerText = totalRewards;
     document.getElementById('breakdown-new').innerText = newTodayCount;
     document.getElementById('breakdown-old').innerText = oldCardsCount;
 
     const totalStamps = cachedPasses.reduce((acc, p) => acc + (p.stamp_count || 0), 0);
     document.getElementById('stat-stamps').innerText = totalStamps;
 
+    renderVIPs(cachedPasses);
     renderPassesList(cachedPasses);
+  }
+
+  function renderVIPs(passes) {
+    const vipContainer = document.getElementById('vip-list');
+    vipContainer.innerHTML = '';
+
+    const sorted = [...passes].sort((a, b) => 
+      (b.total_lifetime_stamps || b.stamp_count || 0) - (a.total_lifetime_stamps || a.stamp_count || 0)
+    ).slice(0, 3);
+
+    if (sorted.length === 0) {
+      vipContainer.innerHTML = `<p class="text-slate-500 py-2 text-center text-[11px]">No activity yet.</p>`;
+      return;
+    }
+
+    const medals = ['🥇', '🥈', '🥉'];
+    sorted.forEach((p, idx) => {
+      const lifetime = p.total_lifetime_stamps || p.stamp_count || 0;
+      const row = document.createElement('div');
+      row.className = "bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex justify-between items-center";
+      row.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span>${medals[idx]}</span>
+          <span class="font-bold text-amber-400">${p.customer_name || 'Anonymous'}</span>
+        </div>
+        <span class="text-slate-400 font-mono">${lifetime} stamps</span>
+      `;
+      vipContainer.appendChild(row);
+    });
   }
 
   function renderPassesList(passes) {
@@ -188,6 +238,20 @@
       (p.device_id && p.device_id.toLowerCase().includes(query))
     );
     renderPassesList(filtered);
+  }
+
+  function exportCSV() {
+    if (!cachedPasses.length) return alert("No customer data to export.");
+    let csv = "Customer Name,Device ID,Current Stamps,Lifetime Stamps,Created At\n";
+    cachedPasses.forEach(p => {
+      csv += `"${p.customer_name || 'Anonymous'}","${p.device_id}",${p.stamp_count},${p.total_lifetime_stamps || p.stamp_count},"${p.created_at || ''}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `loyalty_customers_${bizId}.csv`;
+    a.click();
   }
 
   async function editName(passId, currentName) {
