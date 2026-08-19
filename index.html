@@ -107,18 +107,27 @@
         if (currentBiz.card_bg) {
           document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
         }
-
-        // Render Initial Empty Stamp Grid
-        renderStamps(0, biz.total_stamps_required || 10);
+// 🎨 APPLY DYNAMIC STYLING FROM SUPABASE
+        if (currentBiz.bg_color) {
+            document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
+        }
+        if (currentBiz.card_bg) {
+            document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
+        }
+        
+        if (currentBiz.accent_color) {
+            document.getElementById('biz-name').style.color = currentBiz.accent_color;
+            document.getElementById('stamp-count').style.color = currentBiz.accent_color;
+        }
 
       } catch (err) {
         console.error("App Crash Error:", err);
       }
-    }
-
-    // Helper function to render stamp icons
-    function renderStamps(currentCount, totalRequired) {
-      const grid = document.getElementById('stamp-grid');
+    stamp.className = `aspect-square rounded-xl flex items-center justify-center text-lg border transition-all ${
+            i < currentCount 
+                ? 'bg-amber-500/20 border-amber-400 text-amber-400 stamp-glow scale-105' 
+                : 'bg-black/30 border-white/10 text-white/20'
+        }`;
       grid.innerHTML = '';
 
       for (let i = 0; i < totalRequired; i++) {
