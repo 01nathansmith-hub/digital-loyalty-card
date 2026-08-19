@@ -60,7 +60,7 @@
     const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // 2. Extract Business ID & NFC Stamp Trigger from URL parameters
+    // 2. Extract Business ID & NFC Stamp Trigger from URL
     const urlParams = new URLSearchParams(window.location.search);
     const bizId = urlParams.get('biz') || 'smiths_cafe';
     const isNfcTap = urlParams.get('stamp') === 'true'; 
@@ -117,29 +117,49 @@
 
         let currentCount = pass ? pass.stamp_count : 0;
         const totalRequired = biz.total_stamps_required || 10;
+        const cooldownMinutes = biz.cooldown_minutes || 0;
 
-        // 5. NFC STAMPING LOGIC
+        // 5. NFC STAMPING WITH COOLDOWN PROTECTION
         if (isNfcTap) {
-          currentCount = Math.min(currentCount + 1, totalRequired);
+          let canStamp = true;
+          let minutesLeft = 0;
 
-          if (!pass) {
-            // Create new pass record in Supabase
-            await db.from('passes').insert([{
-              business_id: bizId,
-              device_id: deviceId,
-              stamp_count: currentCount
-            }]);
-          } else {
-            // Update existing pass record in Supabase
-            await db.from('passes').update({
-              stamp_count: currentCount,
-              updated_at: new Date()
-            }).eq('id', pass.id);
+          // Check Cooldown if pass exists and was stamped previously
+          if (pass && pass.updated_at && cooldownMinutes > 0) {
+            const lastStampTime = new Date(pass.updated_at).getTime();
+            const now = new Date().getTime();
+            const elapsedMinutes = (now - lastStampTime) / (1000 * 60);
+
+            if (elapsedMinutes < cooldownMinutes) {
+              canStamp = false;
+              minutesLeft = Math.ceil(cooldownMinutes - elapsedMinutes);
+            }
           }
 
-          document.getElementById('status-box').innerText = "🎉 Stamp added successfully!";
+          if (canStamp) {
+            currentCount = Math.min(currentCount + 1, totalRequired);
 
-          // Clean up URL parameter so refreshing doesn't add duplicate stamps
+            if (!pass) {
+              await db.from('passes').insert([{
+                business_id: bizId,
+                device_id: deviceId,
+                stamp_count: currentCount,
+                updated_at: new Date()
+              }]);
+            } else {
+              await db.from('passes').update({
+                stamp_count: currentCount,
+                updated_at: new Date()
+              }).eq('id', pass.id);
+            }
+
+            document.getElementById('status-box').innerText = "🎉 Stamp added successfully!";
+          } else {
+            // Blocked by cooldown!
+            document.getElementById('status-box').innerText = `⏳ Please wait ${minutesLeft} min before your next stamp!`;
+          }
+
+          // Clean up URL parameter so refreshing doesn't retry
           const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?biz=${bizId}`;
           window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
         }
