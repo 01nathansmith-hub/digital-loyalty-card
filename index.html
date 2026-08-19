@@ -52,8 +52,8 @@
 
     <script>
         // --- CONFIGURATION ---
-        const SUPABASE_URL = "https://tarbuhmvwbspidehaato.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_Fbbz0A7NMK6cbsmL-BFgTQ_5c_r2uVu";
+        const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
 
         const { createClient } = window.supabase;
         const db = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -102,7 +102,7 @@
                 let card = (cardList && cardList.length > 0) ? cardList[0] : null;
 
                 if (!card) {
-                    const { data: newCards, error: createErr } = await db
+                    const { data: newCards } = await db
                         .from('stamp_cards')
                         .insert([{ business_id: bizId, customer_device_id: deviceId, stamps_count: 0 }])
                         .select();
