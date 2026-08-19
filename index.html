@@ -65,7 +65,7 @@
         // Get or Create Persistent Device ID for Customer
         let deviceId = localStorage.getItem('loyalty_device_id');
         if (!deviceId) {
-            deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            deviceId = 'dev_' + Math.random().toString(36).substring(2, 15);
             localStorage.setItem('loyalty_device_id', deviceId);
         }
 
@@ -74,61 +74,68 @@
 
         async function initApp() {
             try {
-                // 1. Fetch Business Info
-                const { data: biz, error: bizError } = await db
+                // 1. Fetch Business Info safely
+                const { data: bizList, error: bizError } = await db
                     .from('businesses')
                     .select('*')
-                    .eq('id', bizId)
-                    .single();
+                    .eq('id', bizId);
 
-                if (bizError || !biz) {
+                if (bizError || !bizList || bizList.length === 0) {
+                    console.error("Biz Fetch Error:", bizError);
                     document.getElementById('biz-name').innerText = "Business Not Found";
-                    document.getElementById('status-box').innerText = "Please check your NFC tag link.";
+                    document.getElementById('status-box').innerText = "Please check your NFC tag link or database entry.";
                     return;
                 }
 
+                const biz = bizList[0];
                 currentBiz = biz;
                 document.getElementById('biz-name').innerText = biz.name;
                 document.getElementById('biz-reward').innerText = `Reward: ${biz.reward_description}`;
 
                 // 2. Fetch or Create Customer Stamp Card
-                let { data: card } = await db
+                const { data: cardList } = await db
                     .from('stamp_cards')
                     .select('*')
                     .eq('business_id', bizId)
-                    .eq('customer_device_id', deviceId)
-                    .maybeSingle();
+                    .eq('customer_device_id', deviceId);
+
+                let card = (cardList && cardList.length > 0) ? cardList[0] : null;
 
                 if (!card) {
-                    const { data: newCard } = await db
+                    const { data: newCards, error: createErr } = await db
                         .from('stamp_cards')
                         .insert([{ business_id: bizId, customer_device_id: deviceId, stamps_count: 0 }])
-                        .select()
-                        .single();
-                    card = newCard;
+                        .select();
+                    
+                    if (newCards && newCards.length > 0) {
+                        card = newCards[0];
+                    }
                 }
 
                 currentCard = card;
 
-                // 3. Process Stamp (Check Cooldown & Add Stamp)
-                await processStampVisit();
+                // 3. Process Stamp Visit
+                if (currentBiz && currentCard) {
+                    await processStampVisit();
+                }
 
             } catch (err) {
-                console.error(err);
+                console.error("Init Error:", err);
                 document.getElementById('status-box').innerText = "Error connecting to loyalty server.";
             }
         }
 
         async function processStampVisit() {
             // Check last visit for anti-cheat cooldown
-            const { data: lastVisit } = await db
+            const { data: visitList } = await db
                 .from('visit_logs')
                 .select('*')
                 .eq('business_id', bizId)
                 .eq('customer_device_id', deviceId)
                 .order('scanned_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+                .limit(1);
+
+            const lastVisit = (visitList && visitList.length > 0) ? visitList[0] : null;
 
             let canStamp = true;
             if (lastVisit) {
@@ -139,12 +146,11 @@
                 if (minutesPassed < currentBiz.cooldown_minutes) {
                     canStamp = false;
                     const remaining = Math.ceil(currentBiz.cooldown_minutes - minutesPassed);
-                    document.getElementById('status-box').innerText = `⏱️ Stamp added! Next tap available in ${remaining} mins.`;
+                    document.getElementById('status-box').innerText = `⏱️ Stamp active! Next scan available in ${remaining} mins.`;
                 }
             }
 
             if (canStamp) {
-                // Add Stamp
                 let newCount = currentCard.stamps_count + 1;
                 if (newCount > currentBiz.total_stamps_required) {
                     newCount = currentBiz.total_stamps_required;
