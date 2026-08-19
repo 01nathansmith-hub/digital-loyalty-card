@@ -62,8 +62,8 @@
 
 <script>
   const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAHss-YdiSEbMiw_weDFiZeK";
-  const db = supabase.createClient,(sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK);
+  const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const bizId = new URLSearchParams(window.location.search).get('biz') || 'smiths_cafe';
   let currentBiz = null;
