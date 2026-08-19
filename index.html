@@ -18,7 +18,7 @@
         ☕
       </div>
       <h1 id="biz-name" class="text-xl font-extrabold text-amber-400 tracking-wide">smiths coffee shop</h1>
-      <span class="inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full text-xs font-semibold uppercase tracking-wider">
+      <span id="member-badge" class="inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full text-xs font-semibold uppercase tracking-wider">
         🏅 Bronze Member
       </span>
       <p id="customer-name-display" class="text-sm font-semibold text-slate-300">Loading...</p>
@@ -30,6 +30,15 @@
           🟢 LIVE: --:--:--
         </span>
       </div>
+    </div>
+
+    <!-- REWARD CLAIM CONTAINER (Hidden until 10/10 stamps) -->
+    <div id="claim-box" class="hidden bg-emerald-950/40 border border-emerald-500/30 p-4 rounded-2xl space-y-3">
+      <p class="text-xs font-bold text-emerald-400 uppercase tracking-wider">🎉 Reward Ready to Claim!</p>
+      <p class="text-xs text-slate-300">Show this screen to staff to redeem your free reward.</p>
+      <button onclick="openRedeemModal()" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg transition uppercase tracking-wider">
+        ☕ Claim Reward (Staff Only)
+      </button>
     </div>
 
     <!-- STATUS & COOLDOWN BOX -->
@@ -58,6 +67,20 @@
     <p class="text-[10px] text-slate-600 font-medium uppercase tracking-widest">POWERED BY SMART LOYALTY</p>
   </div>
 
+  <!-- REDEMPTION STAFF PIN MODAL -->
+  <div id="redeem-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-xs rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+      <div class="text-3xl">🔑</div>
+      <h3 class="text-base font-bold text-amber-400">Staff Redemption PIN</h3>
+      <p class="text-xs text-slate-400">Enter your 4-digit staff PIN to clear reward and reset stamps.</p>
+      <input type="password" id="staff-pin-input" maxlength="4" placeholder="••••" class="w-full text-center text-xl tracking-widest py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-amber-400">
+      <div class="flex gap-2">
+        <button onclick="closeRedeemModal()" class="flex-1 py-2 bg-slate-800 text-slate-400 text-xs font-semibold rounded-xl hover:bg-slate-700">Cancel</button>
+        <button onclick="confirmRedeem()" class="flex-1 py-2 bg-amber-500 text-slate-950 text-xs font-bold rounded-xl hover:bg-amber-400">Confirm</button>
+      </div>
+    </div>
+  </div>
+
 <script>
   const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
@@ -75,7 +98,6 @@
   }
   startLiveClock();
 
-  // Read params or set defaults
   const urlParams = new URLSearchParams(window.location.search);
   const bizId = urlParams.get('biz') || 'smiths_cafe';
   let deviceId = urlParams.get('device');
@@ -88,9 +110,13 @@
     }
   }
 
+  let activePass = null;
+  let activeBiz = null;
+
   async function initPass() {
     // 1. Fetch Business Profile
     const { data: biz } = await db.from('businesses').select('*').eq('id', bizId).maybeSingle();
+    activeBiz = biz;
     const bizName = biz?.name || 'smiths coffee shop';
     const totalRequired = biz?.total_stamps_required || 10;
     const cooldownMinutes = Number(biz?.cooldown_minutes) || 0;
@@ -107,7 +133,6 @@
     let currentCount = pass ? pass.stamp_count : 0;
     let lifetimeCount = pass ? (pass.total_lifetime_stamps || pass.stamp_count || 0) : 0;
     
-    // Prompt brand-new customers for their actual name
     let customerName = pass?.customer_name;
     if (!customerName) {
       customerName = prompt("Welcome! Please enter your name:") || 'New Customer';
@@ -116,7 +141,7 @@
     let canStamp = true;
     let minutesLeft = 0;
 
-    // 3. Cooldown Verification for existing passes
+    // 3. Cooldown Verification
     if (pass && pass.updated_at && cooldownMinutes > 0) {
       const lastStampTime = new Date(pass.updated_at).getTime();
       const elapsedMinutes = (new Date().getTime() - lastStampTime) / (1000 * 60);
@@ -127,19 +152,26 @@
       }
     }
 
-    // 4. Stamping Logic Execution
+    // Stop adding extra stamps if user is already at maximum capacity
+    if (currentCount >= totalRequired) {
+      canStamp = false;
+    }
+
+    // 4. Execute Stamp Addition
     if (canStamp) {
       currentCount = Math.min(currentCount + 1, totalRequired);
       lifetimeCount += 1;
 
-      const { error: saveError } = await db.from('passes').upsert({
+      const { data: updated, error: saveError } = await db.from('passes').upsert({
         business_id: bizId,
         device_id: deviceId,
         customer_name: customerName,
         stamp_count: currentCount,
         total_lifetime_stamps: lifetimeCount,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'business_id, device_id' });
+      }, { onConflict: 'business_id, device_id' }).select().single();
+
+      activePass = updated;
 
       if (saveError) {
         console.error("Save Error:", saveError);
@@ -148,7 +180,12 @@
         document.getElementById('status-box').innerHTML = "🎉 Stamp added successfully!";
       }
     } else {
-      document.getElementById('status-box').innerHTML = `⏳ Please wait <b>${minutesLeft} min</b> before your next stamp!`;
+      activePass = pass;
+      if (currentCount >= totalRequired) {
+        document.getElementById('status-box').innerHTML = "🏆 Card complete! Ready for reward redemption.";
+      } else {
+        document.getElementById('status-box').innerHTML = `⏳ Please wait <b>${minutesLeft} min</b> before your next stamp!`;
+      }
     }
 
     // 5. Render Pass Interface
@@ -160,6 +197,28 @@
     document.getElementById('stamp-ratio-text').innerText = `${current} / ${total} STAMPS`;
     document.getElementById('lifetime-stamps-text').innerText = `${lifetime} Stamps`;
 
+    // Dynamic Tier Badges based on Lifetime Visits
+    const badgeEl = document.getElementById('member-badge');
+    if (lifetime >= 25) {
+      badgeEl.innerText = "🥇 Gold VIP";
+      badgeEl.className = "inline-block px-3 py-1 bg-amber-400/20 border border-amber-400/40 text-amber-300 rounded-full text-xs font-semibold uppercase tracking-wider";
+    } else if (lifetime >= 10) {
+      badgeEl.innerText = "🥈 Silver Member";
+      badgeEl.className = "inline-block px-3 py-1 bg-slate-300/20 border border-slate-300/40 text-slate-200 rounded-full text-xs font-semibold uppercase tracking-wider";
+    } else {
+      badgeEl.innerText = "🥉 Bronze Member";
+      badgeEl.className = "inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full text-xs font-semibold uppercase tracking-wider";
+    }
+
+    // Display / Hide Claim Box
+    const claimBox = document.getElementById('claim-box');
+    if (current >= total) {
+      claimBox.classList.remove('hidden');
+    } else {
+      claimBox.classList.add('hidden');
+    }
+
+    // Build Stamp Grid
     const grid = document.getElementById('stamp-grid');
     grid.innerHTML = '';
 
@@ -173,6 +232,39 @@
       }`;
       stampEl.innerHTML = isStamped ? '☕' : '◯';
       grid.appendChild(stampEl);
+    }
+  }
+
+  function openRedeemModal() {
+    document.getElementById('staff-pin-input').value = '';
+    document.getElementById('redeem-modal').classList.remove('hidden');
+  }
+
+  function closeRedeemModal() {
+    document.getElementById('redeem-modal').classList.add('hidden');
+  }
+
+  async function confirmRedeem() {
+    const enteredPin = document.getElementById('staff-pin-input').value;
+    const actualAdminPin = activeBiz?.pin_code || '1234';
+
+    if (enteredPin === actualAdminPin) {
+      const { data: resetPass, error } = await db.from('passes').update({
+        stamp_count: 0,
+        updated_at: new Date().toISOString()
+      }).eq('id', activePass.id).select().single();
+
+      if (!error) {
+        closeRedeemModal();
+        alert("🎉 Reward Claimed! Stamp count has been reset to 0.");
+        activePass = resetPass;
+        renderUI(resetPass.customer_name, 0, resetPass.total_lifetime_stamps, activeBiz?.total_stamps_required || 10);
+        document.getElementById('status-box').innerHTML = "✨ Reward claimed successfully!";
+      } else {
+        alert("Error updating redemption status.");
+      }
+    } else {
+      alert("❌ Incorrect Staff PIN!");
     }
   }
 
