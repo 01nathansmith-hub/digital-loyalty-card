@@ -37,18 +37,23 @@
     </div>
 
  <!-- LOYALTY CARD DISPLAY -->
+  <!-- LOYALTY CARD DISPLAY -->
     <div class="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/50 mb-6">
       <div class="flex justify-between items-center mb-4">
         <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Loyalty Pass</span>
         <span id="stamp-count" class="text-xs font-bold text-amber-400">0 / 0 STAMPS</span>
       </div>
 
-      <!-- Stamp Grid Container (with closing tag!) -->
+      <!-- Stamp Grid Container -->
       <div id="stamp-grid" class="grid grid-cols-5 gap-2 my-4"></div>
     </div>
-      </div>
+
+    <!-- FOOTER -->
+    <div class="text-xs text-slate-500 uppercase tracking-widest font-semibold">
+      Powered by Smart Loyalty
     </div>
 
+  </div>
     <!-- FOOTER -->
     <div class="text-xs text-slate-500 uppercase tracking-widest font-semibold">
       Powered by Smart Loyalty
@@ -59,10 +64,10 @@
   <script>
     // 1. Initialize Supabase Client
     // Replace these placeholder strings with your actual Supabase URL & Anon Key if needed!
-   const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co"; 
-    const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+ const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co"; 
+const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK"; // Ensure no trailing quotes or typos here!
 
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     // 2. Extract Business ID from URL parameter (e.g., ?biz=verne_cafe)
     const urlParams = new URLSearchParams(window.location.search);
     const bizId = urlParams.get('biz') || 'demo_cafe';
