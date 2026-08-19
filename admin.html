@@ -102,8 +102,9 @@
         const listHtml = passes.map(p => `
           <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-700/50 gap-2">
             <div>
-              <p class="font-mono text-xs text-amber-400">${p.device_id}</p>
-              <p class="text-[11px] text-slate-400">Current Stamps: <b class="text-slate-200">${p.stamp_count}</b> | Lifetime: <b class="text-slate-200">${p.total_lifetime_stamps || p.stamp_count}</b></p>
+              <p class="font-bold text-sm text-amber-400">${p.customer_name || 'Unnamed Pass'}</p>
+              <p class="font-mono text-[10px] text-slate-500">${p.device_id}</p>
+              <p class="text-[11px] text-slate-400 mt-1">Current Stamps: <b class="text-slate-200">${p.stamp_count}</b> | Lifetime: <b class="text-slate-200">${p.total_lifetime_stamps || p.stamp_count}</b></p>
             </div>
             <div class="flex gap-2">
               <button onclick="addManualStamp('${p.device_id}', ${p.stamp_count}, ${p.total_lifetime_stamps || p.stamp_count})" class="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-xs">+1 Stamp</button>
