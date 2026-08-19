@@ -35,7 +35,7 @@
       <h1 id="biz-name" class="text-2xl font-bold text-amber-400">Loading Business...</h1>
       <p id="status-box" class="text-xs text-slate-400 mt-1">Fetching reward info...</p>
       
-      <!-- LIVE TIME VERIFICATION -->
+      <!-- LIVE TIME VERIFICATION (ANTI-SCREENSHOT) -->
       <div class="mt-3 text-[10px] font-mono text-emerald-400 bg-emerald-950/60 py-1 px-3 rounded-full inline-block border border-emerald-800/50">
         🟢 LIVE: <span id="live-timer">--:--:--</span>
       </div>
@@ -52,7 +52,7 @@
       <div id="stamp-grid" class="grid grid-cols-5 gap-2 my-4"></div>
     </div>
 
-    <!-- REDEEM BUTTON CONTAINER -->
+    <!-- REDEEM BUTTON CONTAINER (Hidden by default) -->
     <div id="redeem-container" class="hidden mb-6">
       <button onclick="redeemReward()" class="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-all transform active:scale-95">
         🎁 Claim Free Reward!
@@ -68,7 +68,7 @@
   </div>
 
   <script>
-    // 1. Initialize Supabase
+    // 1. Initialize Supabase Client
     const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co"; 
     const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -78,7 +78,7 @@
     const bizId = urlParams.get('biz') || 'smiths_cafe';
     const isNfcTap = urlParams.get('stamp') === 'true'; 
 
-    // 3. Persistent Device ID (Using LocalStorage)
+    // 3. Persistent Device ID (Stored in browser LocalStorage)
     let deviceId = localStorage.getItem('loyalty_device_id');
     if (!deviceId) {
       deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Date.now();
@@ -87,16 +87,16 @@
 
     let currentBiz = null;
 
-    // Live clock for staff authenticity verification
+    // Start live clock for staff verification
     setInterval(() => {
       const clock = document.getElementById('live-timer');
       if(clock) clock.innerText = new Date().toLocaleTimeString();
     }, 1000);
 
-    // 4. Main App Loader
+    // 4. Main App Initialization Logic
     async function initApp() {
       try {
-        // Fetch Business Details
+        // Fetch business details from Supabase
         const { data: bizList, error: bizError } = await db
           .from('businesses')
           .select('*')
@@ -110,12 +110,13 @@
         const biz = bizList[0];
         currentBiz = biz;
         document.getElementById('biz-name').innerText = biz.name;
-        document.getElementById('status-box').innerText = biz.reward_description || "Collect stamps for rewards!";
 
+        // Apply dynamic image logo if available
         if (currentBiz.logo_url && currentBiz.logo_url.trim() !== '') {
           document.getElementById('logo-container').innerHTML = `<img src="${currentBiz.logo_url}" alt="Logo" class="h-16 w-auto max-w-[160px] object-contain rounded-lg">`;
         }
 
+        // Apply custom colors if defined in database
         if (currentBiz.bg_color) document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
         if (currentBiz.card_bg) document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
         if (currentBiz.accent_color) {
@@ -140,6 +141,7 @@
           let canStamp = true;
           let minutesLeft = 0;
 
+          // Check cooldown timer only if strictly greater than 0
           if (pass && pass.updated_at && cooldownMinutes > 0) {
             const lastStampTime = new Date(pass.updated_at).getTime();
             const elapsedMinutes = (new Date().getTime() - lastStampTime) / (1000 * 60);
@@ -153,31 +155,37 @@
           if (canStamp) {
             currentCount = Math.min(currentCount + 1, totalRequired);
 
-            if (!pass) {
-              await db.from('passes').insert([{
-                business_id: bizId,
-                device_id: deviceId,
-                stamp_count: currentCount,
-                updated_at: new Date().toISOString()
-              }]);
-            } else {
-              await db.from('passes').update({
-                stamp_count: currentCount,
-                updated_at: new Date().toISOString()
-              }).eq('id', pass.id);
-            }
+            // UPSERT logic with explicit conflict target
+            const { error: saveError } = await db
+              .from('passes')
+              .upsert(
+                {
+                  business_id: bizId,
+                  device_id: deviceId,
+                  stamp_count: currentCount,
+                  updated_at: new Date().toISOString()
+                },
+                { onConflict: 'business_id, device_id' }
+              );
 
-            document.getElementById('status-box').innerText = "🎉 Stamp added successfully!";
+            if (saveError) {
+              console.error("Database Save Error:", saveError);
+              document.getElementById('status-box').innerText = "⚠️ Error saving stamp!";
+            } else {
+              document.getElementById('status-box').innerText = "🎉 Stamp added successfully!";
+            }
           } else {
             document.getElementById('status-box').innerText = `⏳ Please wait ${minutesLeft} min before your next stamp!`;
           }
 
-          // Clean up URL parameter after scanning
+          // Clean up URL parameter cleanly without reloading page
           const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?biz=${bizId}`;
           window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        } else {
+          document.getElementById('status-box').innerText = biz.reward_description || "Collect stamps for rewards!";
         }
 
-        // Display Redeem Button if goal reached
+        // Display Redeem Button if stamp target reached
         if (currentCount >= totalRequired) {
           document.getElementById('status-box').innerText = "🎉 REWARD UNLOCKED!";
           document.getElementById('redeem-container').classList.remove('hidden');
@@ -191,13 +199,13 @@
       }
     }
 
-    // 5. Direct-Database Redeem Handler (Fixes Mobile Reset Issue)
+    // 5. Direct Database Redeem Handler
     async function redeemReward() {
       const correctPin = currentBiz ? (currentBiz.pin_code || '1234') : '1234';
-      const userPin = prompt("Staff: Enter 4-digit PIN to claim reward:");
+      const userPin = prompt("Staff: Enter 4-digit PIN code to claim reward:");
 
       if (userPin === correctPin) {
-        // Query database directly to reset pass for this exact phone
+        // Query database directly to reset pass to 0 for this phone
         const { error } = await db
           .from('passes')
           .update({
@@ -219,6 +227,7 @@
       }
     }
 
+    // 6. UI Renderer for Stamp Slots
     function renderStamps(currentCount, totalRequired) {
       const grid = document.getElementById('stamp-grid');
       if (!grid) return;
