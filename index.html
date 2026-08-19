@@ -20,39 +20,61 @@
     .stamp-glow { 
       box-shadow: 0 0 15px rgba(251, 191, 36, 0.4); 
     }
+    .silver-card {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #1e293b 100%);
+      border: 2px solid #94a3b8 !important;
+      box-shadow: 0 0 20px rgba(148, 163, 184, 0.2);
+    }
+    .gold-card {
+      background: linear-gradient(135deg, #1c1917 0%, #451a03 50%, #1c1917 100%);
+      border: 2px solid #f59e0b !important;
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.3);
+    }
   </style>
 </head>
 
 <body id="main-bg" class="min-h-screen flex items-center justify-center p-4 transition-colors duration-500">
 
-  <div id="card-box" class="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 p-6 text-center relative overflow-hidden transition-colors duration-500">
+  <div id="card-box" class="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 p-6 text-center relative overflow-hidden transition-all duration-500">
     
     <!-- HEADER -->
-    <div class="mb-6 flex flex-col items-center">
-      <div id="logo-container" class="mb-3 flex items-center justify-center min-h-[50px]">
+    <div class="mb-4 flex flex-col items-center">
+      <div id="logo-container" class="mb-2 flex items-center justify-center min-h-[50px]">
         <span id="default-logo" class="text-4xl">☕</span>
       </div>
       <h1 id="biz-name" class="text-2xl font-bold text-amber-400">Loading Business...</h1>
-      <p id="status-box" class="text-xs text-slate-400 mt-1">Fetching reward info...</p>
       
-      <!-- LIVE TIME VERIFICATION (ANTI-SCREENSHOT) -->
+      <!-- VIP TIER BADGE -->
+      <div id="tier-badge" class="mt-2 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-amber-900/40 text-amber-300 border border-amber-700/50">
+        🥉 BRONZE MEMBER
+      </div>
+
+      <p id="status-box" class="text-xs text-slate-400 mt-2">Fetching reward info...</p>
+      
+      <!-- LIVE TIME VERIFICATION -->
       <div class="mt-3 text-[10px] font-mono text-emerald-400 bg-emerald-950/60 py-1 px-3 rounded-full inline-block border border-emerald-800/50">
         🟢 LIVE: <span id="live-timer">--:--:--</span>
       </div>
     </div>
 
     <!-- LOYALTY CARD DISPLAY -->
-    <div class="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/50 mb-6">
+    <div id="pass-card-ui" class="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/50 mb-6 transition-all duration-500">
       <div class="flex justify-between items-center mb-4">
-        <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Loyalty Pass</span>
+        <span id="tier-subtext" class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Loyalty Pass</span>
         <span id="stamp-count" class="text-xs font-bold text-amber-400">0 / 0 STAMPS</span>
       </div>
 
       <!-- Stamp Grid Container -->
       <div id="stamp-grid" class="grid grid-cols-5 gap-2 my-4"></div>
+
+      <!-- LIFETIME STATS -->
+      <div class="mt-3 pt-3 border-t border-white/10 flex justify-between items-center text-[11px] text-slate-400">
+        <span>Lifetime Visits:</span>
+        <span id="lifetime-count" class="font-bold text-slate-200">0 Stamps</span>
+      </div>
     </div>
 
-    <!-- REDEEM BUTTON CONTAINER (Hidden by default) -->
+    <!-- REDEEM BUTTON CONTAINER -->
     <div id="redeem-container" class="hidden mb-6">
       <button onclick="redeemReward()" class="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-all transform active:scale-95">
         🎁 Claim Free Reward!
@@ -68,17 +90,14 @@
   </div>
 
   <script>
-    // 1. Initialize Supabase Client
     const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co"; 
     const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // 2. Extract URL Parameters
     const urlParams = new URLSearchParams(window.location.search);
     const bizId = urlParams.get('biz') || 'smiths_cafe';
     const isNfcTap = urlParams.get('stamp') === 'true'; 
 
-    // Helper functions for persistent cookies
     function setCookie(name, value, days) {
       const d = new Date();
       d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
@@ -96,11 +115,9 @@
       return null;
     }
 
-    // 3. Persistent Deterministic Device ID (Survives NFC App Clip LocalStorage Wipes)
     let deviceId = localStorage.getItem('loyalty_device_id') || getCookie('loyalty_device_id');
 
     if (!deviceId) {
-      // Hash browser specs to create a stable ID for the physical phone
       const rawFingerprint = navigator.userAgent + screen.width + "x" + screen.height;
       let hash = 0;
       for (let i = 0; i < rawFingerprint.length; i++) {
@@ -108,23 +125,19 @@
         hash |= 0;
       }
       deviceId = 'dev_' + Math.abs(hash);
-      
       localStorage.setItem('loyalty_device_id', deviceId);
       setCookie('loyalty_device_id', deviceId, 365);
     }
 
     let currentBiz = null;
 
-    // Start live clock for staff verification
     setInterval(() => {
       const clock = document.getElementById('live-timer');
       if(clock) clock.innerText = new Date().toLocaleTimeString();
     }, 1000);
 
-    // 4. Main App Initialization Logic
     async function initApp() {
       try {
-        // Fetch business details from Supabase
         const { data: bizList, error: bizError } = await db
           .from('businesses')
           .select('*')
@@ -139,20 +152,10 @@
         currentBiz = biz;
         document.getElementById('biz-name').innerText = biz.name;
 
-        // Apply dynamic image logo if available
         if (currentBiz.logo_url && currentBiz.logo_url.trim() !== '') {
           document.getElementById('logo-container').innerHTML = `<img src="${currentBiz.logo_url}" alt="Logo" class="h-16 w-auto max-w-[160px] object-contain rounded-lg">`;
         }
 
-        // Apply custom colors if defined in database
-        if (currentBiz.bg_color) document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
-        if (currentBiz.card_bg) document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
-        if (currentBiz.accent_color) {
-          document.getElementById('biz-name').style.color = currentBiz.accent_color;
-          document.getElementById('stamp-count').style.color = currentBiz.accent_color;
-        }
-
-        // Fetch user's current pass
         let { data: pass } = await db
           .from('passes')
           .select('*')
@@ -161,15 +164,14 @@
           .maybeSingle();
 
         let currentCount = pass ? pass.stamp_count : 0;
+        let lifetimeCount = pass ? (pass.total_lifetime_stamps || currentCount) : 0;
         const totalRequired = biz.total_stamps_required || 10;
         const cooldownMinutes = Number(biz.cooldown_minutes) || 0;
 
-        // Process NFC Stamp Tap
         if (isNfcTap) {
           let canStamp = true;
           let minutesLeft = 0;
 
-          // Check cooldown timer only if strictly greater than 0
           if (pass && pass.updated_at && cooldownMinutes > 0) {
             const lastStampTime = new Date(pass.updated_at).getTime();
             const elapsedMinutes = (new Date().getTime() - lastStampTime) / (1000 * 60);
@@ -182,8 +184,8 @@
 
           if (canStamp) {
             currentCount = Math.min(currentCount + 1, totalRequired);
+            lifetimeCount += 1;
 
-            // UPSERT logic using deterministic device_id
             const { error: saveError } = await db
               .from('passes')
               .upsert(
@@ -191,6 +193,7 @@
                   business_id: bizId,
                   device_id: deviceId,
                   stamp_count: currentCount,
+                  total_lifetime_stamps: lifetimeCount,
                   updated_at: new Date().toISOString()
                 },
                 { onConflict: 'business_id, device_id' }
@@ -206,20 +209,21 @@
             document.getElementById('status-box').innerText = `⏳ Please wait ${minutesLeft} min before your next stamp!`;
           }
 
-          // Clean up URL parameter cleanly without reloading page
           const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?biz=${bizId}`;
           window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
         } else {
           document.getElementById('status-box').innerText = biz.reward_description || "Collect stamps for rewards!";
         }
 
-        // Display Redeem Button if stamp target reached
+        applyVipTier(lifetimeCount);
+
         if (currentCount >= totalRequired) {
           document.getElementById('status-box').innerText = "🎉 REWARD UNLOCKED!";
           document.getElementById('redeem-container').classList.remove('hidden');
         }
 
         document.getElementById('stamp-count').innerText = `${currentCount} / ${totalRequired} STAMPS`;
+        document.getElementById('lifetime-count').innerText = `${lifetimeCount} Stamps`;
         renderStamps(currentCount, totalRequired);
 
       } catch (err) {
@@ -227,13 +231,33 @@
       }
     }
 
-    // 5. Direct Database Redeem Handler
+    function applyVipTier(lifetimeStamps) {
+      const badge = document.getElementById('tier-badge');
+      const passUi = document.getElementById('pass-card-ui');
+      const subtext = document.getElementById('tier-subtext');
+
+      if (lifetimeStamps >= 60) {
+        badge.innerText = "🥇 GOLD VIP MEMBER";
+        badge.className = "mt-2 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-amber-500/20 text-amber-300 border border-amber-400";
+        passUi.className = "rounded-2xl p-4 mb-6 transition-all duration-500 gold-card";
+        subtext.innerText = "Gold VIP Pass";
+      } else if (lifetimeStamps >= 30) {
+        badge.innerText = "🥈 SILVER VIP MEMBER";
+        badge.className = "mt-2 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-slate-700/80 text-slate-200 border border-slate-400";
+        passUi.className = "rounded-2xl p-4 mb-6 transition-all duration-500 silver-card";
+        subtext.innerText = "Silver VIP Pass";
+      } else {
+        badge.innerText = "🥉 BRONZE MEMBER";
+        badge.className = "mt-2 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-amber-950/60 text-amber-400 border border-amber-800/60";
+        subtext.innerText = "Standard Loyalty Pass";
+      }
+    }
+
     async function redeemReward() {
       const correctPin = currentBiz ? (currentBiz.pin_code || '1234') : '1234';
       const userPin = prompt("Staff: Enter 4-digit PIN code to claim reward:");
 
       if (userPin === correctPin) {
-        // Query database directly to reset pass to 0 for this phone
         const { error } = await db
           .from('passes')
           .update({
@@ -244,18 +268,16 @@
           .eq('device_id', deviceId);
 
         if (!error) {
-          alert("🎉 Reward claimed! Pass has been reset to 0 stamps.");
+          alert("🎉 Reward claimed! Card stamps reset to 0 (Lifetime status kept!).");
           location.reload();
         } else {
           alert("Error resetting pass. Please try again.");
-          console.error(error);
         }
       } else if (userPin !== null) {
         alert("❌ Incorrect PIN code!");
       }
     }
 
-    // 6. UI Renderer for Stamp Slots
     function renderStamps(currentCount, totalRequired) {
       const grid = document.getElementById('stamp-grid');
       if (!grid) return;
