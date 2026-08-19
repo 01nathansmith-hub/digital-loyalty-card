@@ -62,7 +62,7 @@
 
   <!-- FREE REWARD UNLOCKED MODAL -->
   <div id="reward-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-    <div class="bg-slate-900 border border-amber-500/50 rounded-3xl p-8 max-w-sm w-full text-center space-y-5 shadow-2xl animate-bounce-short">
+    <div class="bg-slate-900 border border-amber-500/50 rounded-3xl p-8 max-w-sm w-full text-center space-y-5 shadow-2xl">
       <div class="text-6xl animate-pulse">🎁</div>
       <h2 class="text-2xl font-black text-amber-400">Free Coffee Unlocked!</h2>
       <p class="text-xs text-slate-300 leading-relaxed">
@@ -86,7 +86,6 @@
   const urlParams = new URLSearchParams(window.location.search);
   const bizId = urlParams.get('biz') || 'smiths_cafe';
 
-  // Retrieve persistent Device ID
   let deviceId = localStorage.getItem('loyalty_device_id');
   if (!deviceId) {
     deviceId = 'dev_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
@@ -96,40 +95,53 @@
   let currentPass = null;
 
   async function initPass() {
-    // 1. Fetch business details
-    const { data: biz } = await db.from('businesses').select('*').eq('id', bizId).single();
-    if (biz) {
-      document.getElementById('biz-name').innerText = biz.name;
+    try {
+      // 1. Fetch business details
+      const { data: biz } = await db.from('businesses').select('*').eq('id', bizId).maybeSingle();
+      if (biz && biz.name) {
+        document.getElementById('biz-name').innerText = biz.name;
+      }
+
+      // 2. Fetch or create pass
+      let { data: pass } = await db.from('passes').select('*').eq('business_id', bizId).eq('device_id', deviceId).maybeSingle();
+
+      if (!pass) {
+        const { data: newPass, error: createError } = await db.from('passes').insert([{
+          business_id: bizId,
+          device_id: deviceId,
+          stamp_count: 0,
+          total_lifetime_stamps: 0,
+          customer_name: 'New Customer'
+        }]).select().single();
+
+        if (createError) {
+          console.error("Pass Creation Error:", createError);
+        } else {
+          pass = newPass;
+        }
+      }
+
+      currentPass = pass;
+      renderCard();
+
+      // 3. Process Auto Stamp
+      if (currentPass && urlParams.get('action') === 'stamp') {
+        await processStampAction(biz);
+      }
+    } catch (err) {
+      console.error("Init Error:", err);
     }
-
-    // 2. Fetch or create pass
-    let { data: pass } = await db.from('passes').select('*').eq('business_id', bizId).eq('device_id', deviceId).maybeSingle();
-
-    if (!pass) {
-      const { data: newPass } = await db.from('passes').insert([{
-        business_id: bizId,
-        device_id: deviceId,
-        stamp_count: 0,
-        total_lifetime_stamps: 0,
-        customer_name: 'New Customer'
-      }]).select().single();
-      pass = newPass;
-    }
-
-    currentPass = pass;
-    renderCard();
-    checkAutoStamp(biz);
   }
 
   function renderCard() {
+    if (!currentPass) return;
+
     const stamps = currentPass.stamp_count || 0;
     const lifetime = currentPass.total_lifetime_stamps || stamps;
 
-    // Update Counter Text
     document.getElementById('stamp-counter-text').innerText = `${stamps} / 10 STAMPS`;
     document.getElementById('lifetime-counter').innerText = `${lifetime} Stamps`;
 
-    // Render 10 Grid Slots
     const grid = document.getElementById('stamp-grid');
     grid.innerHTML = '';
     for (let i = 1; i <= 10; i++) {
@@ -143,7 +155,6 @@
       grid.appendChild(slot);
     }
 
-    // Calculate Dynamic VIP Tiers
     const tierBadge = document.getElementById('tier-badge');
     if (lifetime >= 50) {
       tierBadge.innerHTML = '👑 LEGENDARY MEMBER';
@@ -159,52 +170,52 @@
       tierBadge.className = 'inline-block px-3 py-1 bg-amber-700/20 border border-amber-700/40 rounded-full text-xs font-bold text-amber-400 uppercase tracking-widest';
     }
 
-    // Check Reward Modal Condition
     if (stamps >= 10) {
       document.getElementById('reward-modal').classList.remove('hidden');
       triggerConfetti();
     }
   }
 
-  async function checkAutoStamp(biz) {
-    // If arriving from an active NFC scan trigger (?action=stamp)
-    if (urlParams.get('action') === 'stamp') {
-      const cooldownMs = (biz?.cooldown_minutes || 60) * 60 * 1000;
-      const lastStampTime = currentPass.last_stamped_at ? new Date(currentPass.last_stamped_at).getTime() : 0;
-      const now = Date.now();
+  async function processStampAction(biz) {
+    const cooldownMs = ((biz?.cooldown_minutes) || 0) * 60 * 1000;
+    const lastStampTime = currentPass.last_stamped_at ? new Date(currentPass.last_stamped_at).getTime() : 0;
+    const now = Date.now();
 
-      if (now - lastStampTime < cooldownMs) {
-        showBanner('⏰ Cooldown active! Please wait before stamping again.', 'bg-amber-500/10 border-amber-500/30 text-amber-400');
-        return;
-      }
+    if (cooldownMs > 0 && (now - lastStampTime < cooldownMs)) {
+      showBanner('⏰ Cooldown active! Please wait before stamping again.', 'bg-amber-500/10 border-amber-500/30 text-amber-400');
+      return;
+    }
 
-      // Add Stamp
-      const newStamps = (currentPass.stamp_count || 0) + 1;
-      const newLifetime = (currentPass.total_lifetime_stamps || 0) + 1;
+    const currentStamps = currentPass.stamp_count || 0;
+    const currentLifetime = currentPass.total_lifetime_stamps || currentStamps;
 
-      const { data: updatedPass } = await db.from('passes').update({
-        stamp_count: newStamps > 10 ? 10 : newStamps,
-        total_lifetime_stamps: newLifetime,
-        last_stamped_at: new Date().toISOString()
-      }).eq('id', currentPass.id).select().single();
+    const newStamps = currentStamps >= 10 ? 1 : currentStamps + 1;
+    const newLifetime = currentLifetime + 1;
 
-      if (updatedPass) {
-        currentPass = updatedPass;
-        renderCard();
-        triggerHaptic();
-        triggerConfetti();
-        showBanner('🎉 Stamp added successfully!', 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400');
-      }
+    const { data: updatedPass, error: updateError } = await db.from('passes').update({
+      stamp_count: newStamps,
+      total_lifetime_stamps: newLifetime,
+      last_stamped_at: new Date().toISOString()
+    }).eq('id', currentPass.id).select().single();
+
+    if (updateError) {
+      console.error("Update error:", updateError);
+      showBanner(`❌ Database error: ${updateError.message}`, 'bg-rose-500/10 border-rose-500/30 text-rose-400');
+      return;
+    }
+
+    if (updatedPass) {
+      currentPass = updatedPass;
+      renderCard();
+      triggerHaptic();
+      triggerConfetti();
+      showBanner('🎉 Stamp added successfully!', 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400');
     }
   }
 
   function triggerConfetti() {
     if (typeof confetti === 'function') {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
     }
   }
 
