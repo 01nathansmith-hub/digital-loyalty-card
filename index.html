@@ -106,7 +106,12 @@
 
     let currentCount = pass ? pass.stamp_count : 0;
     let lifetimeCount = pass ? (pass.total_lifetime_stamps || pass.stamp_count || 0) : 0;
-    let customerName = pass?.customer_name || 'james';
+    
+    // Prompt brand-new customers for their actual name
+    let customerName = pass?.customer_name;
+    if (!customerName) {
+      customerName = prompt("Welcome! Please enter your name:") || 'New Customer';
+    }
 
     let canStamp = true;
     let minutesLeft = 0;
