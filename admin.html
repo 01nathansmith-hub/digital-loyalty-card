@@ -3,58 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Staff Dashboard</title>
+  <title>Staff Control Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-6 font-sans">
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6 font-sans">
 
-  <!-- LOGIN PANEL -->
-  <div id="login-panel" class="max-w-md mx-auto mt-20 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl text-center">
-    <div class="text-4xl mb-2">🔑</div>
-    <h1 class="text-xl font-bold text-amber-400 mb-1">Staff Keyring Portal</h1>
-    <p class="text-xs text-slate-400 mb-4">Enter staff PIN code to access controls</p>
-    
-    <input id="pin-input" type="password" maxlength="4" placeholder="••••" class="w-full text-center text-2xl font-mono p-3 rounded-xl bg-slate-900 border border-slate-700 text-amber-400 mb-4 focus:outline-none">
-    <button onclick="login()" class="w-full py-3 bg-amber-500 hover:bg-amber-600 font-bold rounded-xl text-slate-950 transition-all">Login</button>
+  <!-- LOGIN CONTAINER -->
+  <div id="login-screen" class="max-w-md mx-auto my-20 bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center space-y-6">
+    <div class="text-4xl">🔑</div>
+    <h1 class="text-2xl font-bold text-amber-400">Staff Keyring Portal</h1>
+    <p class="text-xs text-slate-400">Enter staff PIN code to access controls</p>
+    <input type="password" id="pin-input" maxlength="4" placeholder="••••" class="w-full text-center text-2xl tracking-widest py-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-amber-400">
+    <button onclick="checkPin()" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl shadow-lg transition">Login</button>
   </div>
 
-  <!-- MAIN DASHBOARD -->
-  <div id="dashboard-panel" class="hidden space-y-6 max-w-2xl mx-auto">
-
+  <!-- DASHBOARD CONTAINER -->
+  <div id="dashboard-screen" class="hidden max-w-4xl mx-auto space-y-6">
+    
     <!-- HEADER -->
-    <div class="flex justify-between items-center bg-slate-800 p-4 rounded-2xl border border-slate-700">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900 border border-slate-800 rounded-2xl p-6 gap-4">
       <div>
-        <h1 id="biz-title" class="text-lg font-bold text-amber-400">Staff Dashboard</h1>
+        <h1 id="biz-header-name" class="text-2xl font-black text-amber-400">smiths coffee shop — Staff Control</h1>
         <p class="text-xs text-slate-400">NFC Control Center</p>
       </div>
       <div class="flex gap-2">
-        <button onclick="changePin()" class="text-xs text-amber-400 hover:text-amber-300 px-3 py-1 bg-slate-900 rounded-lg border border-slate-700">🔑 Change PIN</button>
-        <button onclick="logout()" class="text-xs text-slate-400 hover:text-red-400 px-3 py-1 bg-slate-900 rounded-lg border border-slate-700">Logout</button>
+        <button onclick="changePin()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-semibold rounded-xl">🔑 Change PIN</button>
+        <button onclick="logout()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold rounded-xl">Logout</button>
       </div>
     </div>
 
-    <!-- METRICS GRID -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700">
-        <span class="text-xs text-slate-400 uppercase">Active Passes</span>
-        <p id="stat-total-passes" class="text-2xl font-bold text-amber-400 mt-1">0</p>
+    <!-- STATS & COOLDOWN SETTINGS -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <p class="text-xs font-bold text-slate-400 uppercase">Active Passes</p>
+        <p id="stat-active" class="text-3xl font-black text-slate-100 mt-2">0</p>
       </div>
-      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700">
-        <span class="text-xs text-slate-400 uppercase">Total Stamps</span>
-        <p id="stat-total-stamps" class="text-2xl font-bold text-amber-400 mt-1">0</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <p class="text-xs font-bold text-slate-400 uppercase">Total Stamps Issued</p>
+        <p id="stat-stamps" class="text-3xl font-black text-amber-400 mt-2">0</p>
       </div>
-      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 col-span-2 sm:col-span-1">
-        <span class="text-xs text-slate-400 uppercase">Cooldown</span>
-        <p id="stat-cooldown" class="text-2xl font-bold text-amber-400 mt-1">0 min</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+        <div>
+          <p class="text-xs font-bold text-slate-400 uppercase">Cooldown Timer</p>
+          <p id="stat-cooldown" class="text-3xl font-black text-amber-400 mt-1">60 min</p>
+        </div>
+        <button onclick="changeCooldown()" class="mt-3 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold rounded-lg hover:bg-amber-500/20 transition">⚙️ Change Cooldown</button>
       </div>
     </div>
 
-    <!-- PASS LIST -->
-    <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 space-y-3">
-      <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Customer Loyalty Passes</h2>
-      <div id="pass-list" class="space-y-2">
-        <p class="text-xs text-slate-500">Loading customer passes...</p>
+    <!-- CUSTOMER PASSES LIST -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+      <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Customer Loyalty Passes</h2>
+      <div id="passes-list" class="space-y-3">
+        <!-- Rendered dynamically -->
       </div>
     </div>
 
@@ -65,92 +67,107 @@
   const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const bizId = new URLSearchParams(window.location.search).get('biz') || 'smiths_cafe';
+  const urlParams = new URLSearchParams(window.location.search);
+  const bizId = urlParams.get('biz') || 'smiths_cafe';
   let currentBiz = null;
 
-  async function login() {
-    const pin = document.getElementById('pin-input').value;
-    const { data } = await db.from('businesses').select('*').eq('id', bizId).maybeSingle();
-    
-    const validPin = data?.pin_code || '1234';
+  async function checkPin() {
+    const enteredPin = document.getElementById('pin-input').value;
+    const { data: biz } = await db.from('businesses').select('*').eq('id', bizId).single();
+    currentBiz = biz;
 
-    if (pin === validPin) {
-      currentBiz = data || { id: bizId, pin_code: '1234' };
-      document.getElementById('login-panel').classList.add('hidden');
-      document.getElementById('dashboard-panel').classList.remove('hidden');
-      if (data?.name) document.getElementById('biz-title').innerText = `${data.name} — Staff Control`;
-      loadDashboardData();
+    const actualPin = biz?.pin_code || '1234';
+    if (enteredPin === actualPin) {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('dashboard-screen').classList.remove('hidden');
+      loadDashboard();
     } else {
-      alert("❌ Invalid PIN Code (Default: 1234)");
+      alert('❌ Incorrect PIN code.');
     }
+  }
+
+  async function loadDashboard() {
+    const { data: biz } = await db.from('businesses').select('*').eq('id', bizId).single();
+    currentBiz = biz;
+    document.getElementById('biz-header-name').innerText = `${biz.name} — Staff Control`;
+    document.getElementById('stat-cooldown').innerText = `${biz.cooldown_minutes} min`;
+
+    const { data: passes } = await db.from('passes').select('*').eq('business_id', bizId);
+    
+    document.getElementById('stat-active').innerText = passes?.length || 0;
+    const totalStamps = passes?.reduce((acc, p) => acc + (p.stamp_count || 0), 0) || 0;
+    document.getElementById('stat-stamps').innerText = totalStamps;
+
+    const listContainer = document.getElementById('passes-list');
+    listContainer.innerHTML = '';
+
+    if (!passes || passes.length === 0) {
+      listContainer.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">No active customer passes found.</p>`;
+      return;
+    }
+
+    passes.forEach(p => {
+      const card = document.createElement('div');
+      card.className = "flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-950 border border-slate-800 p-4 rounded-xl gap-3";
+      card.innerHTML = `
+        <div>
+          <p class="font-bold text-amber-400 text-sm">${p.customer_name || 'Anonymous'}</p>
+          <p class="text-[10px] text-slate-500 font-mono">${p.device_id}</p>
+          <p class="text-xs text-slate-400 mt-1">Current Stamps: <b>${p.stamp_count}</b> | Lifetime: <b>${p.total_lifetime_stamps || p.stamp_count}</b></p>
+        </div>
+        <div class="flex gap-2 w-full sm:w-auto">
+          <button onclick="addStamp('${p.id}', ${p.stamp_count})" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 text-xs font-semibold rounded-lg flex-1 sm:flex-none">+1 Stamp</button>
+          <button onclick="resetPass('${p.id}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold rounded-lg flex-1 sm:flex-none">Reset</button>
+          <button onclick="deletePass('${p.id}')" class="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-xs font-semibold rounded-lg flex-1 sm:flex-none">Delete</button>
+        </div>
+      `;
+      listContainer.appendChild(card);
+    });
+  }
+
+  async function changeCooldown() {
+    const newMinutes = prompt("Enter new cooldown time in minutes:", currentBiz.cooldown_minutes);
+    if (!newMinutes || isNaN(newMinutes)) return;
+
+    const { error } = await db.from('businesses').update({ cooldown_minutes: parseInt(newMinutes) }).eq('id', bizId);
+    if (!error) {
+      alert("✅ Cooldown updated!");
+      loadDashboard();
+    } else {
+      alert("Failed to update cooldown.");
+    }
+  }
+
+  async function deletePass(passId) {
+    if (!confirm("Are you sure you want to completely delete this customer's card?")) return;
+
+    const { error } = await db.from('passes').delete().eq('id', passId);
+    if (!error) {
+      loadDashboard();
+    } else {
+      alert("Failed to delete pass.");
+    }
+  }
+
+  async function addStamp(passId, current) {
+    await db.from('passes').update({ stamp_count: current + 1 }).eq('id', passId);
+    loadDashboard();
+  }
+
+  async function resetPass(passId) {
+    await db.from('passes').update({ stamp_count: 0 }).eq('id', passId);
+    loadDashboard();
+  }
+
+  async function changePin() {
+    const newPin = prompt("Enter new 4-digit PIN:");
+    if (!newPin || newPin.length !== 4) return alert("PIN must be 4 digits.");
+    await db.from('businesses').update({ pin_code: newPin }).eq('id', bizId);
+    alert("✅ PIN updated!");
   }
 
   function logout() {
     location.reload();
-  }
-
-  async function loadDashboardData() {
-    document.getElementById('stat-cooldown').innerText = `${currentBiz?.cooldown_minutes || 0} min`;
-
-    const { data: passes } = await db.from('passes').select('*').eq('business_id', bizId);
-
-    if (passes) {
-      document.getElementById('stat-total-passes').innerText = passes.length;
-      const totalStamps = passes.reduce((acc, p) => acc + (p.total_lifetime_stamps || p.stamp_count || 0), 0);
-      document.getElementById('stat-total-stamps').innerText = totalStamps;
-
-      const listHtml = passes.map(p => `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-700/50 gap-2">
-          <div>
-            <p class="font-bold text-sm text-amber-400">${p.customer_name || 'Unnamed Pass'}</p>
-            <p class="font-mono text-[10px] text-slate-500">${p.device_id}</p>
-            <p class="text-[11px] text-slate-400 mt-1">Current Stamps: <b class="text-slate-200">${p.stamp_count}</b> | Lifetime: <b class="text-slate-200">${p.total_lifetime_stamps || p.stamp_count}</b></p>
-          </div>
-          <div class="flex gap-2">
-            <button onclick="addManualStamp('${p.device_id}', ${p.stamp_count}, ${p.total_lifetime_stamps || p.stamp_count})" class="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-xs">+1 Stamp</button>
-            <button onclick="resetPass('${p.device_id}')" class="px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-lg text-xs">Reset</button>
-          </div>
-        </div>
-      `).join('');
-
-      document.getElementById('pass-list').innerHTML = listHtml || '<p class="text-xs text-slate-500">No active passes found.</p>';
-    }
-  }
-
-  async function addManualStamp(deviceId, current, lifetime) {
-    await db.from('passes').update({
-      stamp_count: current + 1,
-      total_lifetime_stamps: lifetime + 1,
-      updated_at: new Date().toISOString()
-    }).eq('business_id', bizId).eq('device_id', deviceId);
-
-    loadDashboardData();
-  }
-
-  async function resetPass(deviceId) {
-    if (confirm("Reset this pass stamps to 0? (Lifetime stamps will be preserved)")) {
-      await db.from('passes').update({
-        stamp_count: 0,
-        updated_at: new Date().toISOString()
-      }).eq('business_id', bizId).eq('device_id', deviceId);
-
-      loadDashboardData();
-    }
-  }
-
-  async function changePin() {
-    const newPin = prompt("Enter a new 4-digit PIN code:");
-    if (!newPin || newPin.trim().length !== 4 || isNaN(newPin.trim())) {
-      alert("❌ Invalid PIN. Please enter exactly 4 numbers (e.g. 5678).");
-      return;
-    }
-    const { error } = await db.from('businesses').update({ pin_code: newPin.trim() }).eq('id', bizId);
-    if (error) {
-      alert("❌ Failed to update PIN.");
-    } else {
-      if (currentBiz) currentBiz.pin_code = newPin.trim();
-      alert(`✅ Success! Your new PIN code is: ${newPin.trim()}`);
-    }
   }
 </script>
 </body>
