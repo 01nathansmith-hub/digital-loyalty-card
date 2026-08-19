@@ -23,6 +23,13 @@
       </span>
       <p id="customer-name-display" class="text-sm font-semibold text-slate-300">Loading...</p>
       <p id="reward-display" class="text-xs text-slate-400">free coffee</p>
+      
+      <!-- LIVE ANTI-SCREENSHOT CLOCK -->
+      <div class="pt-1">
+        <span id="live-clock" class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          🟢 LIVE: --:--:--
+        </span>
+      </div>
     </div>
 
     <!-- STATUS & COOLDOWN BOX -->
@@ -55,6 +62,18 @@
   const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // START LIVE DIGITAL CLOCK
+  function startLiveClock() {
+    function updateClock() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('en-US', { hour12: true });
+      document.getElementById('live-clock').innerHTML = `🟢 LIVE: ${timeString}`;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+  }
+  startLiveClock();
 
   // Read params or set defaults
   const urlParams = new URLSearchParams(window.location.search);
