@@ -60,9 +60,10 @@
     const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // 2. Extract Business ID from URL parameter (e.g., ?biz=smiths_cafe)
+    // 2. Extract Business ID & NFC Stamp Trigger from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
-    const bizId = urlParams.get('biz') || 'demo_cafe';
+    const bizId = urlParams.get('biz') || 'smiths_cafe';
+    const isNfcTap = urlParams.get('stamp') === 'true'; 
 
     // 3. Persistent Device ID for Local Storage Tracking
     let deviceId = localStorage.getItem('loyalty_device_id');
@@ -76,13 +77,12 @@
     // 4. Main App Initialization
     async function initApp() {
       try {
-        // Fetch Business Info safely from Supabase
+        // Fetch Business Info from Supabase
         const { data: bizList, error: bizError } = await db
           .from('businesses')
           .select('*')
           .eq('id', bizId);
 
-        // Check for fetch errors or missing business
         if (bizError || !bizList || bizList.length === 0) {
           console.error("Biz Fetch Error:", bizError);
           document.getElementById('biz-name').innerText = "Business Not Found";
@@ -90,14 +90,12 @@
           return;
         }
 
-        // Assign business data
         const biz = bizList[0];
         currentBiz = biz;
         document.getElementById('biz-name').innerText = biz.name;
         document.getElementById('status-box').innerText = biz.reward_description || "Collect stamps for rewards!";
-        document.getElementById('stamp-count').innerText = `0 / ${biz.total_stamps_required || 10} STAMPS`;
 
-        // 🎨 APPLY DYNAMIC STYLING FROM SUPABASE
+        // 🎨 APPLY DYNAMIC STYLING
         if (currentBiz.bg_color) {
           document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
         }
@@ -109,8 +107,46 @@
           document.getElementById('stamp-count').style.color = currentBiz.accent_color;
         }
 
-        // Render Stamp Grid
-        renderStamps(0, biz.total_stamps_required || 10);
+        // Fetch user's current loyalty pass
+        let { data: pass, error: passError } = await db
+          .from('passes')
+          .select('*')
+          .eq('business_id', bizId)
+          .eq('device_id', deviceId)
+          .maybeSingle();
+
+        let currentCount = pass ? pass.stamp_count : 0;
+        const totalRequired = biz.total_stamps_required || 10;
+
+        // 5. NFC STAMPING LOGIC
+        if (isNfcTap) {
+          currentCount = Math.min(currentCount + 1, totalRequired);
+
+          if (!pass) {
+            // Create new pass record in Supabase
+            await db.from('passes').insert([{
+              business_id: bizId,
+              device_id: deviceId,
+              stamp_count: currentCount
+            }]);
+          } else {
+            // Update existing pass record in Supabase
+            await db.from('passes').update({
+              stamp_count: currentCount,
+              updated_at: new Date()
+            }).eq('id', pass.id);
+          }
+
+          document.getElementById('status-box').innerText = "🎉 Stamp added successfully!";
+
+          // Clean up URL parameter so refreshing doesn't add duplicate stamps
+          const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?biz=${bizId}`;
+          window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        }
+
+        // Render stamps on card
+        document.getElementById('stamp-count').innerText = `${currentCount} / ${totalRequired} STAMPS`;
+        renderStamps(currentCount, totalRequired);
 
       } catch (err) {
         console.error("App Crash Error:", err);
