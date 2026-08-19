@@ -30,8 +30,11 @@
   <div id="card-box" class="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 p-6 text-center relative overflow-hidden transition-colors duration-500">
     
     <!-- HEADER -->
-    <div class="mb-6">
-      <div class="text-4xl mb-2">☕</div>
+    <div class="mb-6 flex flex-col items-center">
+      <!-- Logo Container -->
+      <div id="logo-container" class="mb-3 flex items-center justify-center min-h-[50px]">
+        <span id="default-logo" class="text-4xl">☕</span>
+      </div>
       <h1 id="biz-name" class="text-2xl font-bold text-amber-400">Loading Business...</h1>
       <p id="status-box" class="text-xs text-slate-400 mt-1">Fetching reward info...</p>
     </div>
@@ -95,6 +98,12 @@
         document.getElementById('biz-name').innerText = biz.name;
         document.getElementById('status-box').innerText = biz.reward_description || "Collect stamps for rewards!";
 
+        // 🖼️ RENDER CUSTOM LOGO IF AVAILABLE
+        if (currentBiz.logo_url && currentBiz.logo_url.trim() !== '') {
+          const logoContainer = document.getElementById('logo-container');
+          logoContainer.innerHTML = `<img src="${currentBiz.logo_url}" alt="Logo" class="h-16 w-auto max-w-[160px] object-contain rounded-lg">`;
+        }
+
         // 🎨 APPLY DYNAMIC STYLING
         if (currentBiz.bg_color) {
           document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
@@ -124,7 +133,6 @@
           let canStamp = true;
           let minutesLeft = 0;
 
-          // Check Cooldown if pass exists and was stamped previously
           if (pass && pass.updated_at && cooldownMinutes > 0) {
             const lastStampTime = new Date(pass.updated_at).getTime();
             const now = new Date().getTime();
@@ -155,11 +163,10 @@
 
             document.getElementById('status-box').innerText = "🎉 Stamp added successfully!";
           } else {
-            // Blocked by cooldown!
             document.getElementById('status-box').innerText = `⏳ Please wait ${minutesLeft} min before your next stamp!`;
           }
 
-          // Clean up URL parameter so refreshing doesn't retry
+          // Clean up URL parameter
           const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?biz=${bizId}`;
           window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
         }
