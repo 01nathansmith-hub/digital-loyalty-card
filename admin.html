@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Loyalty Dashboard</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    body { background: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen p-4 sm:p-6 max-w-4xl mx-auto">
+
+  <!-- LOGIN PANEL -->
+  <div id="login-panel" class="max-w-md mx-auto mt-20 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl text-center">
+    <div class="text-4xl mb-2">🔑</div>
+    <h1 class="text-xl font-bold text-amber-400 mb-1">Staff Keyring Portal</h1>
+    <p class="text-xs text-slate-400 mb-4">Enter staff PIN code to access controls</p>
+    
+    <input id="pin-input" type="password" maxlength="4" placeholder="••••" class="w-full text-center text-2xl font-mono p-3 rounded-xl bg-slate-900 border border-slate-700 text-amber-400 mb-4 focus:outline-none focus:border-amber-400">
+    <button onclick="login()" class="w-full py-3 bg-amber-500 hover:bg-amber-600 font-bold rounded-xl text-slate-950 transition-all">Login</button>
+  </div>
+
+  <!-- MAIN DASHBOARD (HIDDEN UNTIL LOGIN) -->
+  <div id="dashboard-panel" class="hidden space-y-6">
+    
+    <!-- HEADER -->
+    <div class="flex justify-between items-center bg-slate-800 p-4 rounded-2xl border border-slate-700">
+      <div>
+        <h1 id="biz-title" class="text-lg font-bold text-amber-400">Staff Dashboard</h1>
+        <p class="text-xs text-slate-400">NFC Control Center</p>
+      </div>
+      <button onclick="logout()" class="text-xs text-slate-400 hover:text-red-400 px-3 py-1 bg-slate-900 rounded-lg border border-slate-700">Logout</button>
+    </div>
+
+    <!-- METRICS GRID -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700">
+        <p class="text-xs text-slate-400 uppercase">Active Passes</p>
+        <p id="stat-total-passes" class="text-2xl font-bold text-amber-400 mt-1">0</p>
+      </div>
+      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700">
+        <p class="text-xs text-slate-400 uppercase">Total Lifetime Stamps</p>
+        <p id="stat-total-stamps" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
+      </div>
+      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 col-span-2 sm:col-span-1">
+        <p class="text-xs text-slate-400 uppercase">Cooldown Time</p>
+        <p id="stat-cooldown" class="text-2xl font-bold text-sky-400 mt-1">0 min</p>
+      </div>
+    </div>
+
+    <!-- CUSTOMER PASS SEARCH & OVERRIDE -->
+    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+      <h2 class="text-sm font-bold text-slate-200 mb-3">⚡ Customer Pass Management</h2>
+      <div id="customer-list" class="space-y-3">
+        <p class="text-xs text-slate-500">Loading customer passes...</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co"; 
+    const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const bizId = new URLSearchParams(window.location.search).get('biz') || 'smiths_cafe';
+    let currentBiz = null;
+
+    async function login() {
+      const pin = document.getElementById('pin-input').value;
+      const { data } = await db.from('businesses').select('*').eq('id', bizId).single();
+      
+      if (data && pin === (data.pin_code || '1234')) {
+        currentBiz = data;
+        document.getElementById('login-panel').classList.add('hidden');
+        document.getElementById('dashboard-panel').classList.remove('hidden');
+        document.getElementById('biz-title').innerText = `${data.name} — Staff Control`;
+        loadDashboardData();
+      } else {
+        alert("❌ Incorrect PIN");
+      }
+    }
+
+    function logout() {
+      location.reload();
+    }
+
+    async function loadDashboardData() {
+      document.getElementById('stat-cooldown').innerText = `${currentBiz.cooldown_minutes || 0} min`;
+
+      const { data: passes } = await db.from('passes').select('*').eq('business_id', bizId);
+
+      if (passes) {
+        document.getElementById('stat-total-passes').innerText = passes.length;
+        const totalStamps = passes.reduce((acc, p) => acc + (p.total_lifetime_stamps || p.stamp_count || 0), 0);
+        document.getElementById('stat-total-stamps').innerText = totalStamps;
+
+        const listHtml = passes.map(p => `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-700/50 gap-2">
+            <div>
+              <p class="font-mono text-xs text-amber-400">${p.device_id}</p>
+              <p class="text-[11px] text-slate-400">Current Stamps: <b class="text-slate-200">${p.stamp_count}</b> | Lifetime: <b class="text-slate-200">${p.total_lifetime_stamps || p.stamp_count}</b></p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="addManualStamp('${p.device_id}', ${p.stamp_count}, ${p.total_lifetime_stamps || p.stamp_count})" class="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-xs">+1 Stamp</button>
+              <button onclick="resetPass('${p.device_id}')" class="px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-lg text-xs">Reset</button>
+            </div>
+          </div>
+        `).join('');
+
+        document.getElementById('customer-list').innerHTML = listHtml || '<p class="text-xs text-slate-500">No active customer passes found.</p>';
+      }
+    }
+
+    async function addManualStamp(deviceId, current, lifetime) {
+      await db.from('passes').update({
+        stamp_count: current + 1,
+        total_lifetime_stamps: lifetime + 1,
+        updated_at: new Date().toISOString()
+      }).eq('business_id', bizId).eq('device_id', deviceId);
+      
+      loadDashboardData();
+    }
+
+    async function resetPass(deviceId) {
+      if (confirm("Reset this pass stamps to 0? (Lifetime stamps will be preserved)")) {
+        await db.from('passes').update({
+          stamp_count: 0,
+          updated_at: new Date().toISOString()
+        }).eq('business_id', bizId).eq('device_id', deviceId);
+
+        loadDashboardData();
+      }
+    }
+  </script>
+</body>
+</html>
