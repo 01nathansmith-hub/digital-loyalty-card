@@ -164,7 +164,7 @@
           .maybeSingle();
 
         let currentCount = pass ? pass.stamp_count : 0;
-        let lifetimeCount = pass ? (pass.total_lifetime_stamps || currentCount) : 0;
+let lifetimeCount = pass ? Math.max(pass.total_lifetime_stamps || 0, pass.stamp_count || 0) : 0;
         const totalRequired = biz.total_stamps_required || 10;
         const cooldownMinutes = Number(biz.cooldown_minutes) || 0;
 
