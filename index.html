@@ -4,319 +4,155 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Digital Loyalty Card</title>
-  
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
-  <style>
-    body { 
-      background: #0f172a; 
-      color: #f8fafc; 
-      font-family: system-ui, -apple-system, sans-serif; 
-    }
-    .stamp-glow { 
-      box-shadow: 0 0 15px rgba(251, 191, 36, 0.4); 
-    }
-    .silver-card {
-      background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #1e293b 100%);
-      border: 2px solid #94a3b8 !important;
-      box-shadow: 0 0 20px rgba(148, 163, 184, 0.2);
-    }
-    .gold-card {
-      background: linear-gradient(135deg, #1c1917 0%, #451a03 50%, #1c1917 100%);
-      border: 2px solid #f59e0b !important;
-      box-shadow: 0 0 25px rgba(245, 158, 11, 0.3);
-    }
-  </style>
 </head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
 
-<body id="main-bg" class="min-h-screen flex items-center justify-center p-4 transition-colors duration-500">
-
-  <div id="card-box" class="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 p-6 text-center relative overflow-hidden transition-all duration-500">
+  <!-- MAIN LOYALTY CARD CONTAINER -->
+  <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6 text-center">
     
     <!-- HEADER -->
-    <div class="mb-4 flex flex-col items-center">
-      <div id="logo-container" class="mb-2 flex items-center justify-center min-h-[50px]">
-        <span id="default-logo" class="text-4xl">☕</span>
+    <div class="space-y-2">
+      <div class="w-16 h-16 bg-slate-800 border border-slate-700 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-inner">
+        ☕
       </div>
-      <h1 id="biz-name" class="text-2xl font-bold text-amber-400">Loading Business...</h1>
-      
-      <!-- VIP TIER BADGE -->
-      <div id="tier-badge" class="mt-2 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-amber-900/40 text-amber-300 border border-amber-700/50">
-        🥉 BRONZE MEMBER
-      </div>
-      <!-- CUSTOMER NAME INPUT -->
-      <div class="mt-3 px-4">
-        <input id="customer-name-input" type="text" placeholder="Enter your name..." 
-          onchange="updateCustomerName(this.value)"
-          class="w-full text-center text-xs py-1.5 px-3 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors">
-      </div>
-
-      <p id="status-box" class="text-xs text-slate-400 mt-2">Fetching reward info...</p>
-      
-      <!-- LIVE TIME VERIFICATION -->
-      <div class="mt-3 text-[10px] font-mono text-emerald-400 bg-emerald-950/60 py-1 px-3 rounded-full inline-block border border-emerald-800/50">
-        🟢 LIVE: <span id="live-timer">--:--:--</span>
-      </div>
+      <h1 id="biz-name" class="text-xl font-extrabold text-amber-400 tracking-wide">smiths coffee shop</h1>
+      <span class="inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full text-xs font-semibold uppercase tracking-wider">
+        🏅 Bronze Member
+      </span>
+      <p id="customer-name-display" class="text-sm font-semibold text-slate-300">Loading...</p>
+      <p id="reward-display" class="text-xs text-slate-400">free coffee</p>
     </div>
 
-    <!-- LOYALTY CARD DISPLAY -->
-    <div id="pass-card-ui" class="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/50 mb-6 transition-all duration-500">
-      <div class="flex justify-between items-center mb-4">
-        <span id="tier-subtext" class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Loyalty Pass</span>
-        <span id="stamp-count" class="text-xs font-bold text-amber-400">0 / 0 STAMPS</span>
+    <!-- STATUS & COOLDOWN BOX -->
+    <div id="status-box" class="py-2 px-4 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700/50">
+      ⏳ Processing pass status...
+    </div>
+
+    <!-- STAMPS CONTAINER -->
+    <div class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800 space-y-4">
+      <div class="flex justify-between items-center text-xs font-bold text-slate-400">
+        <span>STANDARD LOYALTY PASS</span>
+        <span id="stamp-ratio-text" class="text-amber-400 font-mono">0 / 10 STAMPS</span>
       </div>
 
-      <!-- Stamp Grid Container -->
-      <div id="stamp-grid" class="grid grid-cols-5 gap-2 my-4"></div>
+      <!-- 10 STAMP GRID -->
+      <div id="stamp-grid" class="grid grid-cols-5 gap-3 py-2">
+        <!-- Rendered dynamically -->
+      </div>
 
-      <!-- LIFETIME STATS -->
-      <div class="mt-3 pt-3 border-t border-white/10 flex justify-between items-center text-[11px] text-slate-400">
+      <div class="flex justify-between items-center text-[11px] text-slate-500 pt-2 border-t border-slate-800/80">
         <span>Lifetime Visits:</span>
-        <span id="lifetime-count" class="font-bold text-slate-200">0 Stamps</span>
+        <span id="lifetime-stamps-text" class="font-bold text-slate-300">0 Stamps</span>
       </div>
     </div>
 
-    <!-- REDEEM BUTTON CONTAINER -->
-    <div id="redeem-container" class="hidden mb-6">
-      <button onclick="redeemReward()" class="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-all transform active:scale-95">
-        🎁 Claim Free Reward!
-      </button>
-      <p class="text-[10px] text-slate-400 mt-2">Show screen to staff to redeem</p>
-    </div>
-
-    <!-- FOOTER -->
-    <div class="text-xs text-slate-500 uppercase tracking-widest font-semibold">
-      Powered by Smart Loyalty
-    </div>
-
+    <p class="text-[10px] text-slate-600 font-medium uppercase tracking-widest">POWERED BY SMART LOYALTY</p>
   </div>
 
-  <script>
-    const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co"; 
-    const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script>
+  const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const bizId = urlParams.get('biz') || 'smiths_cafe';
-    const isNfcTap = urlParams.get('stamp') === 'true'; 
+  // Read params or set defaults
+  const urlParams = new URLSearchParams(window.location.search);
+  const bizId = urlParams.get('biz') || 'smiths_cafe';
+  let deviceId = urlParams.get('device');
 
-    function setCookie(name, value, days) {
-      const d = new Date();
-      d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-      document.cookie = name + "=" + value + ";expires=" + d.toUTCString() + ";path=/;SameSite=Lax";
-    }
-
-    function getCookie(name) {
-      const nameEQ = name + "=";
-      const ca = document.cookie.split(';');
-      for(let i = 0; i < ca.length; i++) {
-        let c = ca[i];
-        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
-      }
-      return null;
-    }
-
-    let deviceId = localStorage.getItem('loyalty_device_id') || getCookie('loyalty_device_id');
-
+  if (!deviceId) {
+    deviceId = localStorage.getItem('loyalty_device_id');
     if (!deviceId) {
-      const rawFingerprint = navigator.userAgent + screen.width + "x" + screen.height;
-      let hash = 0;
-      for (let i = 0; i < rawFingerprint.length; i++) {
-        hash = ((hash << 5) - hash) + rawFingerprint.charCodeAt(i);
-        hash |= 0;
-      }
-      deviceId = 'dev_' + Math.abs(hash);
+      deviceId = 'dev_' + Math.floor(Math.random() * 100000000);
       localStorage.setItem('loyalty_device_id', deviceId);
-      setCookie('loyalty_device_id', deviceId, 365);
     }
+  }
 
-    let currentBiz = null;
+  async function initPass() {
+    // 1. Fetch Business Profile
+    const { data: biz } = await db.from('businesses').select('*').eq('id', bizId).maybeSingle();
+    const bizName = biz?.name || 'smiths coffee shop';
+    const totalRequired = biz?.total_stamps_required || 10;
+    const cooldownMinutes = Number(biz?.cooldown_minutes) || 0;
 
-    setInterval(() => {
-      const clock = document.getElementById('live-timer');
-      if(clock) clock.innerText = new Date().toLocaleTimeString();
-    }, 1000);
+    document.getElementById('biz-name').innerText = bizName;
 
-    async function initApp() {
-      try {
-        const { data: bizList, error: bizError } = await db
-          .from('businesses')
-          .select('*')
-          .eq('id', bizId);
+    // 2. Fetch Existing Pass
+    let { data: pass } = await db.from('passes')
+      .select('*')
+      .eq('business_id', bizId)
+      .eq('device_id', deviceId)
+      .maybeSingle();
 
-        if (bizError || !bizList || bizList.length === 0) {
-          document.getElementById('biz-name').innerText = "Business Not Found";
-          return;
-        }
+    let currentCount = pass ? pass.stamp_count : 0;
+    let lifetimeCount = pass ? (pass.total_lifetime_stamps || pass.stamp_count || 0) : 0;
+    let customerName = pass?.customer_name || 'james';
 
-        const biz = bizList[0];
-        currentBiz = biz;
-        document.getElementById('biz-name').innerText = biz.name;
+    let canStamp = true;
+    let minutesLeft = 0;
 
-        if (currentBiz.logo_url && currentBiz.logo_url.trim() !== '') {
-          document.getElementById('logo-container').innerHTML = `<img src="${currentBiz.logo_url}" alt="Logo" class="h-16 w-auto max-w-[160px] object-contain rounded-lg">`;
-        }
+    // 3. Cooldown Verification for existing passes
+    if (pass && pass.updated_at && cooldownMinutes > 0) {
+      const lastStampTime = new Date(pass.updated_at).getTime();
+      const elapsedMinutes = (new Date().getTime() - lastStampTime) / (1000 * 60);
 
-        let { data: pass } = await db
-          .from('passes')
-          .select('*')
-          .eq('business_id', bizId)
-          .eq('device_id', deviceId)
-          .maybeSingle();
-
-        let currentCount = pass ? pass.stamp_count : 0;
-let lifetimeCount = pass ? (pass.total_lifetime_stamps || pass.stamp_count || 0) : 0;
-        const totalRequired = biz.total_stamps_required || 10;
-        const cooldownMinutes = Number(biz.cooldown_minutes) || 0;
-
-        if (isNfcTap) {
-          let canStamp = true;
-          let minutesLeft = 0;
-
-          if (pass && pass.updated_at && cooldownMinutes > 0) {
-            const lastStampTime = new Date(pass.updated_at).getTime();
-            const elapsedMinutes = (new Date().getTime() - lastStampTime) / (1000 * 60);
-
-            if (elapsedMinutes < cooldownMinutes) {
-              canStamp = false;
-              minutesLeft = Math.ceil(cooldownMinutes - elapsedMinutes);
-            }
-          }
-
-          if (canStamp) {
-            currentCount = Math.min(currentCount + 1, totalRequired);
-            lifetimeCount += 1;
-
-            const { error: saveError } = await db
-              .from('passes')
-              .upsert(
-                {
-                  business_id: bizId,
-                  device_id: deviceId,
-                  stamp_count: currentCount,
-                  total_lifetime_stamps: lifetimeCount,
-                  updated_at: new Date().toISOString()
-                },
-                { onConflict: 'business_id, device_id' }
-              );
-
-            if (saveError) {
-              console.error("Database Save Error:", saveError);
-              document.getElementById('status-box').innerText = "⚠️ Error saving stamp!";
-            } else {
-              document.getElementById('status-box').innerText = "🎉 Stamp added successfully!";
-            }
-          } else {
-            document.getElementById('status-box').innerText = `⏳ Please wait ${minutesLeft} min before your next stamp!`;
-          }
-
-          const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?biz=${bizId}`;
-          window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-        } else {
-          document.getElementById('status-box').innerText = biz.reward_description || "Collect stamps for rewards!";
-        }
-
-        applyVipTier(lifetimeCount);
-
-        if (currentCount >= totalRequired) {
-          document.getElementById('status-box').innerText = "🎉 REWARD UNLOCKED!";
-          document.getElementById('redeem-container').classList.remove('hidden');
-        }
-
-        document.getElementById('stamp-count').innerText = `${currentCount} / ${totalRequired} STAMPS`;
-        document.getElementById('lifetime-count').innerText = `${lifetimeCount} Stamps`;
-        renderStamps(currentCount, totalRequired);
-        if (pass && pass.customer_name) document.getElementById('customer-name-input').value = pass.customer_name;
-
-      } catch (err) {
-        console.error("App Crash Error:", err);
+      if (elapsedMinutes < cooldownMinutes) {
+        canStamp = false;
+        minutesLeft = Math.ceil(cooldownMinutes - elapsedMinutes);
       }
     }
 
-    function applyVipTier(lifetimeStamps) {
-      const badge = document.getElementById('tier-badge');
-      const passUi = document.getElementById('pass-card-ui');
-      const subtext = document.getElementById('tier-subtext');
+    // 4. Stamping Logic Execution
+    if (canStamp) {
+      currentCount = Math.min(currentCount + 1, totalRequired);
+      lifetimeCount += 1;
 
-      if (lifetimeStamps >= 60) {
-        badge.innerText = "🥇 GOLD VIP MEMBER";
-        badge.className = "mt-2 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-amber-500/20 text-amber-300 border border-amber-400";
-        passUi.className = "rounded-2xl p-4 mb-6 transition-all duration-500 gold-card";
-        subtext.innerText = "Gold VIP Pass";
-      } else if (lifetimeStamps >= 30) {
-        badge.innerText = "🥈 SILVER VIP MEMBER";
-        badge.className = "mt-2 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-slate-700/80 text-slate-200 border border-slate-400";
-        passUi.className = "rounded-2xl p-4 mb-6 transition-all duration-500 silver-card";
-        subtext.innerText = "Silver VIP Pass";
+      const { error: saveError } = await db.from('passes').upsert({
+        business_id: bizId,
+        device_id: deviceId,
+        customer_name: customerName,
+        stamp_count: currentCount,
+        total_lifetime_stamps: lifetimeCount,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'business_id, device_id' });
+
+      if (saveError) {
+        console.error("Save Error:", saveError);
+        document.getElementById('status-box').innerHTML = "⚠️ Error saving stamp!";
       } else {
-        badge.innerText = "🥉 BRONZE MEMBER";
-        badge.className = "mt-2 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-amber-950/60 text-amber-400 border border-amber-800/60";
-        subtext.innerText = "Standard Loyalty Pass";
+        document.getElementById('status-box').innerHTML = "🎉 Stamp added successfully!";
       }
-   }
-
-async function updateCustomerName(newName) {
-  if (!newName.trim()) return;
-  localStorage.setItem('loyalty_customer_name', newName);
-  await db.from('passes').upsert({
-    business_id: bizId,
-    device_id: deviceId,
-    customer_name: newName,
-    updated_at: new Date().toISOString()
-  }, { onConflict: 'business_id, device_id' });
-}
-
-    async function redeemReward() {
-      const correctPin = currentBiz ? (currentBiz.pin_code || '1234') : '1234';
-      const userPin = prompt("Staff: Enter 4-digit PIN code to claim reward:");
-
-      if (userPin === correctPin) {
-        const { error } = await db
-          .from('passes')
-          .update({
-            stamp_count: 0,
-            updated_at: new Date().toISOString()
-          })
-          .eq('business_id', bizId)
-          .eq('device_id', deviceId);
-
-        if (!error) {
-          alert("🎉 Reward claimed! Card stamps reset to 0 (Lifetime status kept!).");
-          location.reload();
-        } else {
-          alert("Error resetting pass. Please try again.");
-        }
-      } else if (userPin !== null) {
-        alert("❌ Incorrect PIN code!");
-      }
+    } else {
+      document.getElementById('status-box').innerHTML = `⏳ Please wait <b>${minutesLeft} min</b> before your next stamp!`;
     }
 
-    function renderStamps(currentCount, totalRequired) {
-      const grid = document.getElementById('stamp-grid');
-      if (!grid) return;
-      grid.innerHTML = '';
+    // 5. Render Pass Interface
+    renderUI(customerName, currentCount, lifetimeCount, totalRequired);
+  }
 
-      for (let i = 0; i < totalRequired; i++) {
-        const stamp = document.createElement('div');
-        const isStamped = i < currentCount;
+  function renderUI(name, current, lifetime, total) {
+    document.getElementById('customer-name-display').innerText = name;
+    document.getElementById('stamp-ratio-text').innerText = `${current} / ${total} STAMPS`;
+    document.getElementById('lifetime-stamps-text').innerText = `${lifetime} Stamps`;
 
-        stamp.className = `aspect-square rounded-xl flex items-center justify-center text-lg border transition-all ${
-          isStamped 
-            ? 'bg-amber-500/20 border-amber-400 text-amber-400 stamp-glow scale-105' 
-            : 'bg-black/30 border-white/10 text-white/20'
-        }`;
+    const grid = document.getElementById('stamp-grid');
+    grid.innerHTML = '';
 
-        stamp.innerText = isStamped ? '☕' : '◯';
-        grid.appendChild(stamp);
-      }
+    for (let i = 1; i <= total; i++) {
+      const isStamped = i <= current;
+      const stampEl = document.createElement('div');
+      stampEl.className = `w-10 h-10 rounded-full flex items-center justify-center border transition-all ${
+        isStamped 
+          ? 'bg-amber-500 border-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/30' 
+          : 'bg-slate-900 border-slate-800 text-slate-700'
+      }`;
+      stampEl.innerHTML = isStamped ? '☕' : '◯';
+      grid.appendChild(stampEl);
     }
+  }
 
-    initApp();
-  </script>
+  initPass();
+</script>
 </body>
 </html>
