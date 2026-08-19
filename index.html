@@ -117,25 +117,25 @@
 
       } catch (err) {
         console.error("App Crash Error:", err);
-      }
-    stamp.className = `aspect-square rounded-xl flex items-center justify-center text-lg border transition-all ${
-            i < currentCount 
-                ? 'bg-amber-500/20 border-amber-400 text-amber-400 stamp-glow scale-105' 
-                : 'bg-black/30 border-white/10 text-white/20'
-        }`;
-      grid.innerHTML = '';
+     function renderStamps(currentCount, totalRequired) {
+  const grid = document.getElementById('stamp-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
 
-      for (let i = 0; i < totalRequired; i++) {
-        const stamp = document.createElement('div');
-        stamp.className = `aspect-square rounded-xl flex items-center justify-center text-lg border ${
-          i < currentCount 
-            ? 'bg-amber-500/20 border-amber-400 text-amber-400 stamp-glow' 
-            : 'bg-slate-800/40 border-slate-700/60 text-slate-600'
-        }`;
-        stamp.innerText = i < currentCount ? '☕' : '◯';
-        grid.appendChild(stamp);
-      }
-    }
+  for (let i = 0; i < totalRequired; i++) {
+    const stamp = document.createElement('div');
+    const isStamped = i < currentCount;
+
+    stamp.className = `aspect-square rounded-xl flex items-center justify-center text-lg border transition-all ${
+      isStamped 
+        ? 'bg-amber-500/20 border-amber-400 text-amber-400 stamp-glow scale-105' 
+        : 'bg-black/30 border-white/10 text-white/20'
+    }`;
+
+    stamp.innerText = isStamped ? '☕' : '◯';
+    grid.appendChild(stamp);
+  }
+}
 
     // Run app on load
     initApp();
