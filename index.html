@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Loyalty Card</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
+        .stamp-glow { box-shadow: 0 0 15px rgba(251, 191, 36, 0.4); }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 p-6 text-center relative overflow-hidden">
+        
+        <!-- HEADER -->
+        <div class="mb-6">
+            <span class="text-5xl inline-block mb-2">☕</span>
+            <h1 class="text-2xl font-black text-amber-400" id="biz-name">Loading Store...</h1>
+            <p class="text-xs text-slate-400 mt-1" id="biz-reward">Fetching reward info...</p>
+        </div>
+
+        <!-- STAMP CARD CONTAINER -->
+        <div class="bg-slate-900 rounded-2xl p-5 border border-slate-700/80 mb-6">
+            <div class="flex justify-between items-center mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <span>Loyalty Pass</span>
+                <span id="stamp-counter" class="text-amber-400">0 / 0 Stamps</span>
+            </div>
+
+            <!-- DYNAMIC STAMP GRID -->
+            <div id="stamp-grid" class="grid grid-cols-4 gap-3">
+                <!-- Stamps render here -->
+            </div>
+        </div>
+
+        <!-- REWARD NOTICE / STATUS -->
+        <div id="status-box" class="bg-slate-700/50 rounded-xl p-3 mb-6 border border-slate-600 text-sm text-slate-300">
+            Scanning card...
+        </div>
+
+        <!-- REWARD CLAIMED BUTTON (Hidden by default) -->
+        <button id="claim-btn" onclick="redeemReward()" class="hidden w-full py-4 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black rounded-2xl text-lg shadow-lg transition transform active:scale-95 mb-4">
+            🎉 CLAIM FREE REWARD!
+        </button>
+
+        <p class="text-[10px] text-slate-500 uppercase tracking-widest">Powered by Smart Loyalty</p>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const SUPABASE_URL = "https://tarbuhmvwbspidehaato.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_Fbbz0A7NMK6cbsmL-BFgTQ_5c_r2uVu";
+
+        const { createClient } = window.supabase;
+        const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Get Business ID from URL (?biz=demo_cafe)
+        const urlParams = new URLSearchParams(window.location.search);
+        const bizId = urlParams.get('biz') || 'demo_cafe';
+
+        // Get or Create Persistent Device ID for Customer
+        let deviceId = localStorage.getItem('loyalty_device_id');
+        if (!deviceId) {
+            deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('loyalty_device_id', deviceId);
+        }
+
+        let currentBiz = null;
+        let currentCard = null;
+
+        async function initApp() {
+            try {
+                // 1. Fetch Business Info
+                const { data: biz, error: bizError } = await db
+                    .from('businesses')
+                    .select('*')
+                    .eq('id', bizId)
+                    .single();
+
+                if (bizError || !biz) {
+                    document.getElementById('biz-name').innerText = "Business Not Found";
+                    document.getElementById('status-box').innerText = "Please check your NFC tag link.";
+                    return;
+                }
+
+                currentBiz = biz;
+                document.getElementById('biz-name').innerText = biz.name;
+                document.getElementById('biz-reward').innerText = `Reward: ${biz.reward_description}`;
+
+                // 2. Fetch or Create Customer Stamp Card
+                let { data: card } = await db
+                    .from('stamp_cards')
+                    .select('*')
+                    .eq('business_id', bizId)
+                    .eq('customer_device_id', deviceId)
+                    .maybeSingle();
+
+                if (!card) {
+                    const { data: newCard } = await db
+                        .from('stamp_cards')
+                        .insert([{ business_id: bizId, customer_device_id: deviceId, stamps_count: 0 }])
+                        .select()
+                        .single();
+                    card = newCard;
+                }
+
+                currentCard = card;
+
+                // 3. Process Stamp (Check Cooldown & Add Stamp)
+                await processStampVisit();
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('status-box').innerText = "Error connecting to loyalty server.";
+            }
+        }
+
+        async function processStampVisit() {
+            // Check last visit for anti-cheat cooldown
+            const { data: lastVisit } = await db
+                .from('visit_logs')
+                .select('*')
+                .eq('business_id', bizId)
+                .eq('customer_device_id', deviceId)
+                .order('scanned_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            let canStamp = true;
+            if (lastVisit) {
+                const lastTime = new Date(lastVisit.scanned_at).getTime();
+                const now = new Date().getTime();
+                const minutesPassed = (now - lastTime) / (1000 * 60);
+
+                if (minutesPassed < currentBiz.cooldown_minutes) {
+                    canStamp = false;
+                    const remaining = Math.ceil(currentBiz.cooldown_minutes - minutesPassed);
+                    document.getElementById('status-box').innerText = `⏱️ Stamp added! Next tap available in ${remaining} mins.`;
+                }
+            }
+
+            if (canStamp) {
+                // Add Stamp
+                let newCount = currentCard.stamps_count + 1;
+                if (newCount > currentBiz.total_stamps_required) {
+                    newCount = currentBiz.total_stamps_required;
+                }
+
+                // Update database
+                await db.from('stamp_cards').update({ stamps_count: newCount }).eq('id', currentCard.id);
+                await db.from('visit_logs').insert([{ business_id: bizId, customer_device_id: deviceId }]);
+
+                currentCard.stamps_count = newCount;
+                
+                if (newCount === currentBiz.total_stamps_required) {
+                    document.getElementById('status-box').innerText = "🎉 Congratulations! You earned a free reward!";
+                } else {
+                    document.getElementById('status-box').innerText = "✨ Stamp collected! Thanks for visiting!";
+                }
+            }
+
+            renderStamps();
+        }
+
+        function renderStamps() {
+            const grid = document.getElementById('stamp-grid');
+            grid.innerHTML = '';
+
+            const total = currentBiz.total_stamps_required;
+            const filled = currentCard.stamps_count;
+
+            document.getElementById('stamp-counter').innerText = `${filled} / ${total} Stamps`;
+
+            for (let i = 1; i <= total; i++) {
+                const slot = document.createElement('div');
+                slot.className = `h-16 rounded-xl flex items-center justify-center font-bold transition-all duration-300 ${
+                    i <= filled 
+                        ? 'bg-amber-400 text-slate-950 stamp-glow scale-105' 
+                        : 'bg-slate-800 text-slate-600 border border-slate-700'
+                }`;
+
+                slot.innerHTML = i <= filled ? '☕' : `<span class="text-xs">${i}</span>`;
+                grid.appendChild(slot);
+            }
+
+            if (filled >= total) {
+                document.getElementById('claim-btn').classList.remove('hidden');
+            }
+        }
+
+        async function redeemReward() {
+            if (confirm("Show this screen to the staff member to redeem your reward! Reset stamps now?")) {
+                await db.from('stamp_cards').update({ 
+                    stamps_count: 0, 
+                    rewards_earned: (currentCard.rewards_earned || 0) + 1 
+                }).eq('id', currentCard.id);
+
+                currentCard.stamps_count = 0;
+                document.getElementById('claim-btn').classList.add('hidden');
+                document.getElementById('status-box').innerText = "🎁 Reward redeemed! Starting fresh card.";
+                renderStamps();
+            }
+        }
+
+        initApp();
+    </script>
+</body>
+</html>
