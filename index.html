@@ -100,25 +100,20 @@
         document.getElementById('status-box').innerText = biz.reward_description || "Collect stamps for rewards!";
         document.getElementById('stamp-count').innerText = `0 / ${biz.total_stamps_required || 10} STAMPS`;
 
-        // 🎨 APPLY DYNAMIC STYLING FROM SUPABASE
-        if (currentBiz.bg_color) {
-          document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
-        }
-        if (currentBiz.card_bg) {
-          document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
-        }
-// 🎨 APPLY DYNAMIC STYLING FROM SUPABASE
+       // 🎨 APPLY DYNAMIC STYLING FROM SUPABASE
         if (currentBiz.bg_color) {
             document.getElementById('main-bg').style.backgroundColor = currentBiz.bg_color;
         }
         if (currentBiz.card_bg) {
             document.getElementById('card-box').style.backgroundColor = currentBiz.card_bg;
         }
-        
         if (currentBiz.accent_color) {
             document.getElementById('biz-name').style.color = currentBiz.accent_color;
             document.getElementById('stamp-count').style.color = currentBiz.accent_color;
         }
+
+        // Render Stamp Grid
+        renderStamps(0, biz.total_stamps_required || 10);
 
       } catch (err) {
         console.error("App Crash Error:", err);
