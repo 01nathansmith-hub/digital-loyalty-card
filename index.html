@@ -62,17 +62,15 @@
   </div>
 
   <script>
-    // 1. Initialize Supabase Client
-    // Replace these placeholder strings with your actual Supabase URL & Anon Key if needed!
+  
  const SUPABASE_URL = "https://putgidywotlxvnemsgln.supabase.co"; 
-const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK"; // Ensure no trailing quotes or typos here!
+const SUPABASE_ANON_KEY = "sb_publishable_Hy4uQw5cAhss-YdiSEbMIw_weDFiZeK";
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    // 2. Extract Business ID from URL parameter (e.g., ?biz=verne_cafe)
+    
     const urlParams = new URLSearchParams(window.location.search);
     const bizId = urlParams.get('biz') || 'demo_cafe';
 
-    // 3. Persistent Device ID for Local Storage Tracking
     let deviceId = localStorage.getItem('loyalty_device_id');
     if (!deviceId) {
       deviceId = 'dev_' + Math.random().toString(36).substring(2, 15);
@@ -81,7 +79,6 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentBiz = null;
 
-    // 4. Main App Initialization
     async function initApp() {
       try {
         // Fetch Business Info safely from Supabase
