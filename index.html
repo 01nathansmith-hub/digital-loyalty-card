@@ -20,6 +20,7 @@
         ☕
       </div>
       <h1 id="biz-name" class="text-xl font-extrabold text-amber-400 tracking-wide">smiths coffee shop</h1>
+      <p id="customer-greeting" class="text-sm font-semibold text-slate-200">Welcome!</p>
       <div id="tier-badge" class="inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-full text-xs font-bold text-amber-400 uppercase tracking-widest">
         🥉 BRONZE MEMBER
       </div>
@@ -102,16 +103,20 @@
         document.getElementById('biz-name').innerText = biz.name;
       }
 
-      // 2. Fetch or create pass
+      // 2. Fetch pass
       let { data: pass } = await db.from('passes').select('*').eq('business_id', bizId).eq('device_id', deviceId).maybeSingle();
 
+      // If no pass exists, prompt the customer for their name!
       if (!pass) {
+        let enteredName = prompt("Welcome! Enter your name for your loyalty card:") || "Customer";
+        enteredName = enteredName.trim() === "" ? "Customer" : enteredName;
+
         const { data: newPass, error: createError } = await db.from('passes').insert([{
           business_id: bizId,
           device_id: deviceId,
           stamp_count: 0,
           total_lifetime_stamps: 0,
-          customer_name: 'New Customer'
+          customer_name: enteredName
         }]).select().single();
 
         if (createError) {
@@ -139,6 +144,7 @@
     const stamps = currentPass.stamp_count || 0;
     const lifetime = currentPass.total_lifetime_stamps || stamps;
 
+    document.getElementById('customer-greeting').innerText = `Welcome, ${currentPass.customer_name || 'Customer'}!`;
     document.getElementById('stamp-counter-text').innerText = `${stamps} / 10 STAMPS`;
     document.getElementById('lifetime-counter').innerText = `${lifetime} Stamps`;
 
