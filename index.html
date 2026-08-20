@@ -192,6 +192,7 @@
     const newStamps = currentStamps >= 10 ? 1 : currentStamps + 1;
     const newLifetime = currentLifetime + 1;
 
+    // 1. Update Pass in Supabase
     const { data: updatedPass, error: updateError } = await db.from('passes').update({
       stamp_count: newStamps,
       total_lifetime_stamps: newLifetime,
@@ -206,6 +207,13 @@
 
     if (updatedPass) {
       currentPass = updatedPass;
+
+      // 2. Log NFC Scan into visit_logs table
+      await db.from('visit_logs').insert([{
+        business_id: bizId,
+        customer_device_id: deviceId
+      }]);
+
       renderCard();
       triggerHaptic();
       triggerConfetti();
