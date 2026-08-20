@@ -93,7 +93,7 @@
       </div>
     </div>
 
-    <!-- REAL-TIME SCAN AUDIT LOG -->
+    <!-- REAL-TIME SCAN AUDIT LOG WITH CUSTOMER NAMES -->
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
       <div class="flex justify-between items-center">
         <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">📜 Real-Time NFC Scan Audit Log</h2>
@@ -104,7 +104,7 @@
           <thead class="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
             <tr>
               <th class="p-3">Time</th>
-              <th class="p-3">Device ID</th>
+              <th class="p-3">Customer Name</th>
               <th class="p-3">Action</th>
             </tr>
           </thead>
@@ -147,11 +147,13 @@
     if (enteredPin === actualPin) {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('dashboard-screen').classList.remove('hidden');
-      loadDashboard();
       
-      // Auto-refresh audit logs every 5 seconds
-      fetchAuditLogs();
-      setInterval(fetchAuditLogs, 5000);
+      await loadDashboard();
+      
+      // Auto-refresh audit logs & pass lists every 5 seconds
+      setInterval(async () => {
+        await loadDashboard();
+      }, 5000);
     } else {
       alert('❌ Incorrect PIN code.');
     }
@@ -196,6 +198,7 @@
 
     renderVIPs(cachedPasses);
     renderPassesList(cachedPasses);
+    await fetchAuditLogs();
   }
 
   async function fetchAuditLogs() {
@@ -212,12 +215,22 @@
       return;
     }
 
+    // Build lookup map: device_id -> customer_name
+    const nameMap = {};
+    cachedPasses.forEach(p => {
+      if (p.device_id) {
+        nameMap[p.device_id] = p.customer_name || 'New Customer';
+      }
+    });
+
     container.innerHTML = logs.map(log => {
       const time = new Date(log.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const displayName = nameMap[log.customer_device_id] || 'New Customer';
+
       return `
         <tr class="hover:bg-slate-800/40 border-b border-slate-800/40">
           <td class="p-3 font-mono text-amber-400 font-bold">${time}</td>
-          <td class="p-3 font-mono text-xs text-slate-300">${log.customer_device_id}</td>
+          <td class="p-3 font-semibold text-slate-100">${displayName}</td>
           <td class="p-3"><span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-bold">NFC TAP</span></td>
         </tr>
       `;
@@ -309,7 +322,7 @@
     const newName = prompt("Enter updated customer name:", currentName);
     if (!newName) return;
     await db.from('passes').update({ customer_name: newName }).eq('id', passId);
-    loadDashboard();
+    await loadDashboard();
   }
 
   async function changeCooldown() {
@@ -319,7 +332,7 @@
     const { error } = await db.from('businesses').update({ cooldown_minutes: parseInt(newMinutes) }).eq('id', bizId);
     if (!error) {
       alert("✅ Cooldown updated!");
-      loadDashboard();
+      await loadDashboard();
     } else {
       alert("Failed to update cooldown.");
     }
@@ -330,7 +343,7 @@
 
     const { error } = await db.from('passes').delete().eq('id', passId);
     if (!error) {
-      loadDashboard();
+      await loadDashboard();
     } else {
       alert("Failed to delete pass.");
     }
@@ -338,12 +351,12 @@
 
   async function addStamp(passId, current) {
     await db.from('passes').update({ stamp_count: current + 1 }).eq('id', passId);
-    loadDashboard();
+    await loadDashboard();
   }
 
   async function resetPass(passId) {
     await db.from('passes').update({ stamp_count: 0 }).eq('id', passId);
-    loadDashboard();
+    await loadDashboard();
   }
 
   async function changePin() {
