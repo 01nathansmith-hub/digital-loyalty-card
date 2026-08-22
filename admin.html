@@ -55,7 +55,7 @@
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
         <div>
           <p class="text-[10px] font-bold text-slate-400 uppercase">Cooldown Timer</p>
-          <p id="stat-cooldown" class="text-2xl font-black text-amber-400 mt-1">60 min</p>
+          <p id="stat-cooldown" class="text-2xl font-black text-amber-400 mt-1">0 min</p>
         </div>
         <button onclick="changeCooldown()" class="mt-2 px-2 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold rounded hover:bg-amber-500/20 transition">⚙️ Set Cooldown</button>
       </div>
@@ -63,7 +63,6 @@
 
     <!-- VIP LEADERBOARD & CARD ACTIVITY -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <!-- OVERALL CARDS USAGE BREAKDOWN -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
         <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Overall Card Activity</h2>
         <div class="space-y-3 text-xs">
@@ -84,16 +83,13 @@
         </div>
       </div>
 
-      <!-- VIP REGULARS LEADERBOARD -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
         <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">👑 Top Regulars (VIPs)</h2>
-        <div id="vip-list" class="space-y-2 text-xs">
-          <!-- Rendered dynamically -->
-        </div>
+        <div id="vip-list" class="space-y-2 text-xs"></div>
       </div>
     </div>
 
-    <!-- REAL-TIME SCAN AUDIT LOG WITH CUSTOMER NAMES -->
+    <!-- REAL-TIME SCAN AUDIT LOG -->
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
       <div class="flex justify-between items-center">
         <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">📜 Real-Time NFC Scan Audit Log</h2>
@@ -108,9 +104,7 @@
               <th class="p-3">Action</th>
             </tr>
           </thead>
-          <tbody id="audit-log-rows" class="divide-y divide-slate-800/60">
-            <!-- Logs render dynamically -->
-          </tbody>
+          <tbody id="audit-log-rows" class="divide-y divide-slate-800/60"></tbody>
         </table>
       </div>
     </div>
@@ -121,9 +115,7 @@
         <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Customer Loyalty Passes</h2>
         <input type="text" id="search-input" oninput="filterPasses()" placeholder="🔍 Search customer name..." class="w-full sm:w-64 px-3 py-1.5 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-amber-400">
       </div>
-      <div id="passes-list" class="space-y-3">
-        <!-- Rendered dynamically -->
-      </div>
+      <div id="passes-list" class="space-y-3"></div>
     </div>
 
   </div>
@@ -140,17 +132,25 @@
 
   async function checkPin() {
     const enteredPin = document.getElementById('pin-input').value;
-    const { data: biz } = await db.from('businesses').select('*').eq('id', bizId).single();
-    currentBiz = biz;
+    
+    // FIX: Updated table to loyalty_businesses
+    const { data: biz, error } = await db.from('loyalty_businesses').select('*').eq('id', bizId).maybeSingle();
+    
+    if (error || !biz) {
+      alert(`❌ Error loading business details for "${bizId}". Please check database.`);
+      console.error(error);
+      return;
+    }
 
-    const actualPin = biz?.pin_code || '1234';
+    currentBiz = biz;
+    const actualPin = String(biz.pin_code || biz.pin || '1234');
+    
     if (enteredPin === actualPin) {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('dashboard-screen').classList.remove('hidden');
       
       await loadDashboard();
       
-      // Auto-refresh audit logs & pass lists every 5 seconds
       setInterval(async () => {
         await loadDashboard();
       }, 5000);
@@ -160,12 +160,15 @@
   }
 
   async function loadDashboard() {
-    const { data: biz } = await db.from('businesses').select('*').eq('id', bizId).single();
-    currentBiz = biz;
-    document.getElementById('biz-header-name').innerText = `${biz.name} — Staff Control`;
-    document.getElementById('stat-cooldown').innerText = `${biz.cooldown_minutes} min`;
+    // FIX: Query loyalty_businesses
+    const { data: biz } = await db.from('loyalty_businesses').select('*').eq('id', bizId).maybeSingle();
+    currentBiz = biz || { name: 'smiths coffee shop', cooldown_minutes: 0 };
 
-    const { data: passes } = await db.from('passes').select('*').eq('business_id', bizId);
+    document.getElementById('biz-header-name').innerText = `${currentBiz.name || 'smiths coffee shop'} — Staff Control`;
+    document.getElementById('stat-cooldown').innerText = `${currentBiz.cooldown_minutes ?? 0} min`;
+
+    // FIX: Query loyalty_passes
+    const { data: passes } = await db.from('loyalty_passes').select('*').eq('business_id', bizId);
     cachedPasses = passes || [];
 
     const todayStart = new Date();
@@ -184,7 +187,7 @@
       }
       
       const lifetime = p.total_lifetime_stamps || p.stamp_count || 0;
-      totalRewards += Math.floor(lifetime / 10);
+      totalRewards += Math.floor(lifetime / (currentBiz.total_stamps_required || 10));
     });
 
     document.getElementById('stat-today').innerText = newTodayCount;
@@ -202,8 +205,9 @@
   }
 
   async function fetchAuditLogs() {
+    // FIX: Query loyalty_visit_logs
     const { data: logs } = await db
-      .from('visit_logs')
+      .from('loyalty_visit_logs')
       .select('*')
       .eq('business_id', bizId)
       .order('scanned_at', { ascending: false })
@@ -215,7 +219,6 @@
       return;
     }
 
-    // Build lookup map: device_id -> customer_name
     const nameMap = {};
     cachedPasses.forEach(p => {
       if (p.device_id) {
@@ -224,7 +227,7 @@
     });
 
     container.innerHTML = logs.map(log => {
-      const time = new Date(log.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const time = log.scanned_at ? new Date(log.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Just now';
       const displayName = nameMap[log.customer_device_id] || 'New Customer';
 
       return `
@@ -281,12 +284,12 @@
       card.innerHTML = `
         <div>
           <p class="font-bold text-amber-400 text-sm">${p.customer_name || 'Anonymous'}</p>
-          <p class="text-[10px] text-slate-500 font-mono">${p.device_id}</p>
-          <p class="text-xs text-slate-400 mt-1">Current Stamps: <b>${p.stamp_count}</b> | Lifetime: <b>${p.total_lifetime_stamps || p.stamp_count}</b></p>
+          <p class="text-[10px] text-slate-500 font-mono">${p.device_id || ''}</p>
+          <p class="text-xs text-slate-400 mt-1">Current Stamps: <b>${p.stamp_count || 0}</b> | Lifetime: <b>${p.total_lifetime_stamps || p.stamp_count || 0}</b></p>
         </div>
         <div class="flex flex-wrap gap-2 w-full sm:w-auto">
           <button onclick="editName('${p.id}', '${p.customer_name || ''}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold rounded-lg">✏️ Name</button>
-          <button onclick="addStamp('${p.id}', ${p.stamp_count})" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 text-xs font-semibold rounded-lg">+1 Stamp</button>
+          <button onclick="addStamp('${p.id}', ${p.stamp_count || 0})" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 text-xs font-semibold rounded-lg">+1 Stamp</button>
           <button onclick="resetPass('${p.id}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold rounded-lg">Reset</button>
           <button onclick="deletePass('${p.id}')" class="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-xs font-semibold rounded-lg">Delete</button>
         </div>
@@ -308,7 +311,7 @@
     if (!cachedPasses.length) return alert("No customer data to export.");
     let csv = "Customer Name,Device ID,Current Stamps,Lifetime Stamps,Created At\n";
     cachedPasses.forEach(p => {
-      csv += `"${p.customer_name || 'Anonymous'}","${p.device_id}",${p.stamp_count},${p.total_lifetime_stamps || p.stamp_count},"${p.created_at || ''}"\n`;
+      csv += `"${p.customer_name || 'Anonymous'}","${p.device_id || ''}",${p.stamp_count || 0},${p.total_lifetime_stamps || p.stamp_count || 0},"${p.created_at || ''}"\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -321,15 +324,15 @@
   async function editName(passId, currentName) {
     const newName = prompt("Enter updated customer name:", currentName);
     if (!newName) return;
-    await db.from('passes').update({ customer_name: newName }).eq('id', passId);
+    await db.from('loyalty_passes').update({ customer_name: newName }).eq('id', passId);
     await loadDashboard();
   }
 
   async function changeCooldown() {
-    const newMinutes = prompt("Enter new cooldown time in minutes:", currentBiz.cooldown_minutes);
-    if (!newMinutes || isNaN(newMinutes)) return;
+    const newMinutes = prompt("Enter new cooldown time in minutes:", currentBiz?.cooldown_minutes ?? 0);
+    if (newMinutes === null || isNaN(newMinutes)) return;
 
-    const { error } = await db.from('businesses').update({ cooldown_minutes: parseInt(newMinutes) }).eq('id', bizId);
+    const { error } = await db.from('loyalty_businesses').update({ cooldown_minutes: parseInt(newMinutes) }).eq('id', bizId);
     if (!error) {
       alert("✅ Cooldown updated!");
       await loadDashboard();
@@ -341,7 +344,7 @@
   async function deletePass(passId) {
     if (!confirm("Are you sure you want to completely delete this customer's card?")) return;
 
-    const { error } = await db.from('passes').delete().eq('id', passId);
+    const { error } = await db.from('loyalty_passes').delete().eq('id', passId);
     if (!error) {
       await loadDashboard();
     } else {
@@ -350,20 +353,26 @@
   }
 
   async function addStamp(passId, current) {
-    await db.from('passes').update({ stamp_count: current + 1 }).eq('id', passId);
+    await db.from('loyalty_passes').update({ stamp_count: current + 1 }).eq('id', passId);
     await loadDashboard();
   }
 
   async function resetPass(passId) {
-    await db.from('passes').update({ stamp_count: 0 }).eq('id', passId);
+    await db.from('loyalty_passes').update({ stamp_count: 0 }).eq('id', passId);
     await loadDashboard();
   }
 
   async function changePin() {
     const newPin = prompt("Enter new 4-digit PIN:");
     if (!newPin || newPin.length !== 4) return alert("PIN must be 4 digits.");
-    await db.from('businesses').update({ pin_code: newPin }).eq('id', bizId);
-    alert("✅ PIN updated!");
+    
+    // Updates pin_code column in loyalty_businesses
+    const { error } = await db.from('loyalty_businesses').update({ pin_code: newPin }).eq('id', bizId);
+    if (!error) {
+      alert("✅ PIN updated!");
+    } else {
+      alert("Failed to update PIN.");
+    }
   }
 
   function logout() {
